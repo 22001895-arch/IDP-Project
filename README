@@ -1,23 +1,58 @@
-# Project Name
-Brief description
+🏥 Centralized Smart Triage Backend
 
-## 🚀 Features
-- Feature 1
-Doctor's Dashboard
-- Feature 2
-Patient's Dashboard
+This is the Node.js backend for the Smart Medical Triage system. It acts as the central hub that receives patient history and camera-based vitals, 
+merges them in an in-memory "Waiting Room," checks for clinical red flags, and uses Google Gemini AI to summarize the patient's triage zone. 
+All data is securely stored in a local SQLite database.
 
-## 📋 Prerequisites
-What you need before installing
+⚙️ Prerequisites
 
-## 🔧 Installation
-Step-by-step setup guide
+Before you begin, make sure you have the following installed on your computer:
+Node.js (v16 or higher recommended)
+npm (Node Package Manager, which comes installed with Node.js)
 
-## 👥 Contributors
-List of team members
+🚀 How to Install and Run Locally
 
-## 📄 License
-MIT, GPL, etc.
+1. Download the Code
+Clone this repository to your local machine or download the ZIP file and extract it.
 
-## 🙏 Acknowledgments
-Any resources or inspiration
+2. Install Dependencies
+Open your terminal (or command prompt), navigate to the folder where you saved this code, and run:
+
+npm install
+
+This will automatically read the `package.json` file and create the `node_modules` folder specifically for your computer. 
+
+3. Set Up Your Environment Variables
+You must provide your own Google Gemini API key for the AI pipeline to work. 
+* Create a new text file in the root folder and name it exactly `.env`
+* Open the `.env` file and paste the following line, replacing the placeholder with your actual key:
+
+GOOGLE_API_KEY=your_actual_api_key_here
+
+Save the file. 
+
+4. Start the Server
+In your terminal, run the following command:
+
+node server.js
+
+
+If everything is set up correctly, you will see this in your terminal:
+> 🗄️ Connected to Central Database!
+> 🚀 Smart Server is running!
+> 🔗 Click to view database logic: http://localhost:3000/api/view
+> 🏥 Backend is ready to receive data on port 3000
+
+📡 API Endpoints
+
+Once the server is running, the following routes are active:
+
+`POST /api/sync/history`** Receives JSON payloads. Automatically places patients in the buffer ("Waiting Room") until both history and vitals are received, then runs the AI triage pipeline.
+`GET /api/view`** Returns all processed patient records currently saved in the SQLite database as a JSON array.
+`GET /api/status`** Provides live server health metrics, memory usage, and lists the IDs of patients currently sitting in the Waiting Room.
+
+🗄️ Database Notes
+You do not need to install a database software right now. 
+This app uses sqlite3. When you start the server for the first time, 
+it will automatically create a file named patient_data.sqlite in your folder to store the data locally.
+You do not need to install a database software right now. This app uses `sqlite3`. When you start the server for the first time, it will automatically create a file named `patient_data.sqlite` in your folder to store the data locally.
