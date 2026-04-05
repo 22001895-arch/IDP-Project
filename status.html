@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server Status</title>
+    <style>
+        body { 
+            font-family: 'Courier New', Courier, monospace; 
+            padding: 40px; /* Increased padding */
+            background-color: #1e1e2f; 
+            color: #fff; 
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        
+        /* Top Navigation/Header area */
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid #3a3a5a; /* Thicker border */
+            padding-bottom: 20px; /* Increased padding */
+            margin-bottom: 30px; /* Increased margin */
+        }
+
+        h1 { 
+            margin: 0; 
+            color: #00d2ff; 
+            font-size: 2.5em; /* Bigger title */
+        }
+        
+        .nav-btn {
+            background-color: #00d2ff;
+            color: #1e1e2f;
+            text-decoration: none;
+            padding: 15px 30px; /* Bigger button */
+            font-size: 1.2em; /* Bigger text */
+            font-weight: bold;
+            border-radius: 8px;
+            transition: 0.3s;
+            box-shadow: 0 0 15px rgba(0, 210, 255, 0.2);
+        }
+
+        .nav-btn:hover {
+            background-color: #fff;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+        }
+
+        p {
+            font-size: 1.3em; /* Bigger subtitle */
+            margin-bottom: 40px;
+            color: #cdd6f4;
+        }
+        
+        .dashboard {
+            display: grid;
+            /* Cards are now much wider (400px min) to fill empty space */
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 40px; /* Bigger gaps between cards */
+        }
+
+        .card {
+            background: #2a2a40;
+            padding: 40px; /* Thicker card padding */
+            border-radius: 12px;
+            border-left: 8px solid #00d2ff; /* Thicker accent line */
+            box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            min-height: 160px; /* Ensures cards take up vertical space */
+        }
+
+        .card h3 { 
+            margin-top: 0; 
+            color: #aab8c2; 
+            font-size: 20px; /* Bigger label */
+            text-transform: uppercase; 
+            letter-spacing: 2px; 
+            margin-bottom: 15px;
+        }
+        
+        .card .value { 
+            font-size: 48px; /* Massive status values */
+            font-weight: bold; 
+            margin-top: 10px; 
+        }
+        
+        .warning { border-left-color: #ffc107; }
+        .warning .value { color: #ffc107; }
+        
+        /* Specific Waiting Room Styling */
+        .waiting-room-list {
+            margin-top: 25px;
+            background: #1e1e2f;
+            padding: 20px; /* Bigger inner box */
+            border-radius: 8px;
+            min-height: 60px;
+            font-size: 20px; /* Bigger text */
+            color: #ff9800;
+            line-height: 1.5;
+        }
+
+        .refresh-notice {
+            margin-top: 50px;
+            font-size: 18px; /* Bigger footer text */
+            color: #888;
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header-container">
+        <h1>⚙️ Central Node Connection Status</h1>
+        <a href="index.html" class="nav-btn">🏥 View Database Dashboard</a>
+    </div>
+    
+    <p>Live monitoring of the Backend Server.</p>
+
+    <div class="dashboard">
+        <div class="card">
+            <h3>Server Status</h3>
+            <div class="value" id="stat-server">Loading...</div>
+        </div>
+
+        <div class="card">
+            <h3>Network IP (For Tablets)</h3>
+            <div class="value" id="stat-ip" style="font-size: 23px;">Loading...</div>
+        </div>
+
+        <div class="card">
+            <h3>System Uptime</h3>
+            <div class="value" id="stat-uptime">Loading...</div>
+        </div>
+
+        <div class="card">
+            <h3>Memory Usage</h3>
+            <div class="value" id="stat-memory">Loading...</div>
+        </div>
+
+        <div class="card">
+            <h3>Database & AI</h3>
+            <div class="value" id="stat-db" style="font-size: 28px; line-height: 1.4;">Loading...</div>
+        </div>
+
+        <div class="card warning">
+            <h3>Patients in Waiting Room</h3>
+            <div class="value" id="stat-waiting-count">0</div>
+            <div class="waiting-room-list" id="stat-waiting-list">
+                No patients currently buffering.
+            </div>
+        </div>
+    </div>
+
+    <div class="refresh-notice">🔄 Auto-refreshing every 2 seconds...</div>
+
+    <script>
+        // 🔴 Make sure this matches your server port!
+        const STATUS_URL = "http://localhost:3000/api/status"; 
+
+        async function fetchSystemStatus() {
+            try {
+                const response = await fetch(STATUS_URL);
+                if (!response.ok) throw new Error("Server disconnected");
+                
+                const data = await response.json();
+
+                // Update the UI cards
+                document.getElementById('stat-server').innerText = data.serverStatus;
+                document.getElementById('stat-ip').innerText = `http://${data.ipAddress}:3000`;
+                document.getElementById('stat-uptime').innerText = data.uptime;
+                document.getElementById('stat-memory').innerText = data.memoryUsed;
+                document.getElementById('stat-db').innerHTML = `${data.databaseStatus}<br>${data.aiConnection}`;
+                
+                // Update Waiting Room
+                document.getElementById('stat-waiting-count').innerText = data.waitingRoomCount;
+                
+                const waitingList = document.getElementById('stat-waiting-list');
+                if (data.waitingPatients.length > 0) {
+                    waitingList.innerText = "Pending IDs: " + data.waitingPatients.join(", ");
+                } else {
+                    waitingList.innerText = "No patients currently buffering.";
+                }
+
+            } catch (error) {
+                console.error("Connection lost:", error);
+                document.getElementById('stat-server').innerText = "Offline 🔴";
+                document.getElementById('stat-server').style.color = "red";
+            }
+        }
+
+        // Fetch immediately, then loop every 2 seconds
+        fetchSystemStatus();
+        setInterval(fetchSystemStatus, 2000);
+    </script>
+
+</body>
+</html>
