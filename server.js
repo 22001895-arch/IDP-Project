@@ -2,9 +2,10 @@
 require('dotenv').config(); 
 const express = require('express');
 const cors = require('cors');
-const { Pool } = require('pg'); // <-- Swapped from sqlite3 to pg
+const { Pool } = require('pg'); 
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const os = require('os');
+const path = require('path'); // <-- ADDED: The path module to serve HTML files
 
 // Import your Hard Rules
 const { checkHardRules } = require('./triageRules.js'); 
@@ -23,8 +24,6 @@ const model = genAI.getGenerativeModel({
 
 // --- DATABASE SETUP (PostgreSQL) ---
 const pool = new Pool({
-    // It will look for DATABASE_URL in your .env file
-    // Example format: postgres://user:password@localhost:5432/hospital_db
     connectionString: process.env.DATABASE_URL || "postgres://postgres:password@localhost:5432/hospital_db"
 });
 
@@ -32,7 +31,7 @@ pool.on('connect', () => {
     console.log("🗄️ Connected to PostgreSQL Central Database!");
 });
 
-// Create the 12-column table (using async/await)
+// Create the 12-column table
 const initializeDatabase = async () => {
     try {
         await pool.query(`CREATE TABLE IF NOT EXISTS patients (
@@ -59,9 +58,23 @@ initializeDatabase();
 
 // ==========================================
 // 🏥 THE WAITING ROOM (In-Memory Buffer)
-// Must be here globally so all routes can see it!
 // ==========================================
 const waitingRoom = {};
+
+// ==========================================
+// 🏠 FRONT DOOR ROUTES (Serve HTML Pages)
+// ==========================================
+
+// Serve the index.html file at the main web address
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// Serve the status.html file when visiting /status.html
+app.get('/status.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'status.html'));
+});
+
 
 // ==========================================
 // 📥 THE INGESTION ROUTE (With Buffer Logic)
@@ -76,17 +89,14 @@ app.post('/api/sync/history', async (req, res) => {
 
     console.log(`\n--- [INCOMING DATA] Received data for Patient ID: ${id} ---`);
 
-    // 1. Put the patient in the Waiting Room if they aren't there yet
     if (!waitingRoom[id]) {
         waitingRoom[id] = {};
     }
 
-    // 2. Merge the new data with whatever is already in the Waiting Room
     waitingRoom[id] = { ...waitingRoom[id], ...data };
     
     const patientData = waitingRoom[id];
 
-    // 3. Check what is missing
     const hasHistory = patientData.complaints && patientData.details;
     const hasVitals = patientData.ppi && patientData.respiratory_rate;
 
@@ -110,7 +120,6 @@ app.post('/api/sync/history', async (req, res) => {
     let notesSummary = "No additional notes provided.";
 
     try {
-        // --- STEP 1: CHECK HARD RULES ---
         console.log("Step 2: Checking Medical Safety Rules...");
         const ruleResult = checkHardRules(patientData.complaints, patientData.details);
 
@@ -119,7 +128,6 @@ app.post('/api/sync/history', async (req, res) => {
             finalTriage = ruleResult; 
             redFlagStatus = "Yes";
         } else {
-            // --- STEP 2: CALL GEMINI ---
             console.log("Step 3: No Red Flags found. Sending to Gemini...");
             const prompt = `
                 You are a medical triage system.
@@ -143,7 +151,6 @@ app.post('/api/sync/history', async (req, res) => {
             console.log("Step 4: AI Result Generated ->", finalTriage.zone);
         }
         
-        // --- EXTRA STEP: SUMMARIZING ADDITIONAL NOTES ---
         if (patientData.final_notes_raw && patientData.final_notes_raw.trim() !== "") {
             console.log("XTRA STEP: Summarizing Final Notes separately...");
             const notesPrompt = `
@@ -156,10 +163,8 @@ app.post('/api/sync/history', async (req, res) => {
             notesSummary = JSON.parse(notesText).summary;
         }
 
-        // --- STEP 3: DATABASE STORAGE (PostgreSQL handles it with async/await) ---
         console.log("Step 5: Writing to database...");
         
-        // Notice the $1, $2 placeholders instead of ?
         const sql = `INSERT INTO patients 
             (id, complaints, details, final_notes_raw, ppi, respiratory_rate, hrv, spo2, redflag, ai_summary, triage_zone, final_note_summarized) 
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`;
@@ -183,7 +188,6 @@ app.post('/api/sync/history', async (req, res) => {
         
         console.log("Step 6: Saved to DB successfully!");
         
-        // 🧹 CLEANUP: Remove patient from Waiting Room so memory stays clean
         delete waitingRoom[id];
 
         res.json({ success: true, triage: finalTriage }); 
@@ -220,7 +224,7 @@ app.post('/api/sync/history', async (req, res) => {
         } catch (dbError) {
             console.error("❌ Fallback DB Error:", dbError.message);
         } finally {
-            delete waitingRoom[id]; // Cleanup even on failure
+            delete waitingRoom[id]; 
             res.status(500).json({ error: "Processing failed", details: fallbackResponse });
         }
     }
@@ -231,7 +235,6 @@ app.post('/api/sync/history', async (req, res) => {
 // ==========================================
 app.get('/api/view', async (req, res) => {
     try {
-        // Postgres returns data in the .rows property
         const result = await pool.query(`SELECT * FROM patients ORDER BY created_at DESC`);
         res.json(result.rows); 
     } catch (err) {
@@ -273,9 +276,9 @@ app.get('/api/status', (req, res) => {
     });
 });
 
-const PORT = 3000;
+// <-- ADDED: process.env.PORT so Render can assign its own port!
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`\n🚀 Smart Server is running!`);
-    console.log(`🔗 Click to view database logic: http://localhost:${PORT}/api/view`);
-    console.log(`🏥 Backend is ready to receive data on port ${PORT}\n`);
+    console.log(`\n🚀 Smart Server is running on port ${PORT}!`);
+    console.log(`🏥 Backend is ready to receive data\n`);
 });
