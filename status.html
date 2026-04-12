@@ -126,7 +126,7 @@
         </div>
 
         <div class="card">
-            <h3>Network IP (For Tablets)</h3>
+            <h3>Network IP (Cloud Container)</h3>
             <div class="value" id="stat-ip" style="font-size: 23px;">Loading...</div>
         </div>
 
@@ -157,8 +157,8 @@
     <div class="refresh-notice">🔄 Auto-refreshing every 2 seconds...</div>
 
     <script>
-        // 🔴 Make sure this matches your server port!
-        const STATUS_URL = "http://localhost:3000/api/status"; 
+        // 🔴 CHANGED FROM LOCALHOST TO RELATIVE PATH
+        const STATUS_URL = "/api/status"; 
 
         async function fetchSystemStatus() {
             try {
@@ -169,7 +169,7 @@
 
                 // Update the UI cards
                 document.getElementById('stat-server').innerText = data.serverStatus;
-                document.getElementById('stat-ip').innerText = `http://${data.ipAddress}:3000`;
+                document.getElementById('stat-ip').innerText = `Internal: ${data.ipAddress}`;
                 document.getElementById('stat-uptime').innerText = data.uptime;
                 document.getElementById('stat-memory').innerText = data.memoryUsed;
                 document.getElementById('stat-db').innerHTML = `${data.databaseStatus}<br>${data.aiConnection}`;

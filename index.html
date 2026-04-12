@@ -196,7 +196,8 @@
     </div>
 
     <script>
-        const SERVER_URL = "http://localhost:3000/api/view"; 
+        // 🔴 CHANGED FROM LOCALHOST TO RELATIVE PATH
+        const SERVER_URL = "/api/view"; 
         let allPatients = [];
 
         async function fetchPatientData() {
