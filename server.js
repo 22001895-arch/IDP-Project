@@ -5,7 +5,7 @@ const cors = require('cors');
 const { Pool } = require('pg'); 
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const os = require('os');
-const path = require('path'); // <-- ADDED: The path module to serve HTML files
+const path = require('path');
 
 // Import your Hard Rules
 const { checkHardRules } = require('./triageRules.js'); 
@@ -13,6 +13,24 @@ const { checkHardRules } = require('./triageRules.js');
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// ==========================================
+// 🛡️ THE BOUNCER (API KEY SECURITY)
+// ==========================================
+const SECRET_API_KEY = process.env.HOSPITAL_API_KEY || "super-secret-hospital-key-123";
+
+const verifyApiKey = (req, res, next) => {
+    // Look for the VIP pass in the request headers
+    const clientKey = req.headers['x-api-key'];
+
+    if (!clientKey || clientKey !== SECRET_API_KEY) {
+        console.log(`🛑 SECURITY ALERT: Blocked unauthorized POST request from an unknown source!`);
+        return res.status(401).json({ error: "Unauthorized: Invalid or missing API Key" });
+    }
+    
+    // If the key matches, open the door and run the route!
+    next(); 
+};
 
 // --- AI CONFIGURATION ---
 const GEMINI_API_KEY = process.env.GOOGLE_API_KEY;
@@ -24,7 +42,7 @@ const model = genAI.getGenerativeModel({
 
 // --- DATABASE SETUP (PostgreSQL) ---
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL || "postgres://postgres:password@localhost:5432/hospital_db"
+    connectionString: process.env.DATABASE_URL
 });
 
 pool.on('connect', () => {
@@ -77,9 +95,9 @@ app.get('/status.html', (req, res) => {
 
 
 // ==========================================
-// 📥 THE INGESTION ROUTE (With Buffer Logic)
+// 📥 THE INGESTION ROUTE (Secured with verifyApiKey!)
 // ==========================================
-app.post('/api/sync/history', async (req, res) => {
+app.post('/api/sync/history', verifyApiKey, async (req, res) => {
     const data = req.body;
     const id = data.id;
 
