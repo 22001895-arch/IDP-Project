@@ -2,7 +2,7 @@
 require('dotenv').config(); 
 const express = require('express');
 const cors = require('cors');
-const sqlite3 = require('sqlite3').verbose();
+const { Pool } = require('pg'); // <-- Swapped from sqlite3 to pg
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const os = require('os');
 
@@ -14,35 +14,48 @@ app.use(cors());
 app.use(express.json());
 
 // --- AI CONFIGURATION ---
-const GEMINI_API_KEY = process.env.GOOGLE_API_KEY || "AIzaSyAEIqlHmFqP2VsKLhHVrE4TjaocTtuL2qM";
+const GEMINI_API_KEY = process.env.GOOGLE_API_KEY;
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ 
     model: "gemini-2.5-flash", 
     generationConfig: { responseMimeType: "application/json" }
 });
 
-// --- DATABASE SETUP ---
-const db = new sqlite3.Database('./patient_data.sqlite', (err) => {
-    if (err) console.error("Database error:", err.message);
-    else console.log("🗄️ Connected to Central Database!");
+// --- DATABASE SETUP (PostgreSQL) ---
+const pool = new Pool({
+    // It will look for DATABASE_URL in your .env file
+    // Example format: postgres://user:password@localhost:5432/hospital_db
+    connectionString: process.env.DATABASE_URL || "postgres://postgres:password@localhost:5432/hospital_db"
 });
 
-// Create the 12-column table
-db.run(`CREATE TABLE IF NOT EXISTS patients (
-    id TEXT PRIMARY KEY,
-    complaints TEXT,
-    details TEXT,
-    final_notes_raw TEXT,
-    ppi TEXT,
-    respiratory_rate TEXT,
-    hrv TEXT,
-    spo2 TEXT,
-    redflag TEXT,
-    ai_summary TEXT,
-    triage_zone TEXT,
-    final_note_summarized TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-)`);
+pool.on('connect', () => {
+    console.log("🗄️ Connected to PostgreSQL Central Database!");
+});
+
+// Create the 12-column table (using async/await)
+const initializeDatabase = async () => {
+    try {
+        await pool.query(`CREATE TABLE IF NOT EXISTS patients (
+            id TEXT PRIMARY KEY,
+            complaints TEXT,
+            details TEXT,
+            final_notes_raw TEXT,
+            ppi TEXT,
+            respiratory_rate TEXT,
+            hrv TEXT,
+            spo2 TEXT,
+            redflag TEXT,
+            ai_summary TEXT,
+            triage_zone TEXT,
+            final_note_summarized TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )`);
+        console.log("✅ Database table verified!");
+    } catch (err) {
+        console.error("❌ Database initialization error:", err.message);
+    }
+};
+initializeDatabase();
 
 // ==========================================
 // 🏥 THE WAITING ROOM (In-Memory Buffer)
@@ -143,12 +156,13 @@ app.post('/api/sync/history', async (req, res) => {
             notesSummary = JSON.parse(notesText).summary;
         }
 
-        // --- STEP 3: DATABASE STORAGE ---
+        // --- STEP 3: DATABASE STORAGE (PostgreSQL handles it with async/await) ---
         console.log("Step 5: Writing to database...");
         
+        // Notice the $1, $2 placeholders instead of ?
         const sql = `INSERT INTO patients 
             (id, complaints, details, final_notes_raw, ppi, respiratory_rate, hrv, spo2, redflag, ai_summary, triage_zone, final_note_summarized) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`;
         
         const values = [
             id, 
@@ -165,18 +179,14 @@ app.post('/api/sync/history', async (req, res) => {
             notesSummary
         ];
 
-        db.run(sql, values, function(err) {
-            if (err) {
-                console.error("❌ DB Error:", err.message);
-                return res.status(500).json({ error: "Database save failed" });
-            }
-            console.log("Step 6: Saved to DB successfully!");
-            
-            // 🧹 CLEANUP: Remove patient from Waiting Room so memory stays clean
-            delete waitingRoom[id];
+        await pool.query(sql, values);
+        
+        console.log("Step 6: Saved to DB successfully!");
+        
+        // 🧹 CLEANUP: Remove patient from Waiting Room so memory stays clean
+        delete waitingRoom[id];
 
-            res.json({ success: true, triage: finalTriage }); 
-        });
+        res.json({ success: true, triage: finalTriage }); 
 
     } catch (error) {
         console.error("❌ Error Details:", error.message);
@@ -188,7 +198,7 @@ app.post('/api/sync/history', async (req, res) => {
 
         const fallbackSql = `INSERT INTO patients 
             (id, complaints, details, final_notes_raw, ppi, respiratory_rate, hrv, spo2, redflag, ai_summary, triage_zone, final_note_summarized) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`;
             
         const fallbackValues = [
             id, 
@@ -205,21 +215,28 @@ app.post('/api/sync/history', async (req, res) => {
             "Error generating notes"
         ];
 
-        db.run(fallbackSql, fallbackValues, () => {
+        try {
+            await pool.query(fallbackSql, fallbackValues);
+        } catch (dbError) {
+            console.error("❌ Fallback DB Error:", dbError.message);
+        } finally {
             delete waitingRoom[id]; // Cleanup even on failure
             res.status(500).json({ error: "Processing failed", details: fallbackResponse });
-        });
+        }
     }
 });
 
 // ==========================================
 // 📤 ROUTE 2: GIVE JSON (To your index.html)
 // ==========================================
-app.get('/api/view', (req, res) => {
-    db.all(`SELECT * FROM patients ORDER BY created_at DESC`, [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows); 
-    });
+app.get('/api/view', async (req, res) => {
+    try {
+        // Postgres returns data in the .rows property
+        const result = await pool.query(`SELECT * FROM patients ORDER BY created_at DESC`);
+        res.json(result.rows); 
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // ==========================================
@@ -246,7 +263,7 @@ app.get('/api/status', (req, res) => {
 
     res.json({
         serverStatus: "Online 🟢",
-        databaseStatus: "Connected 🗄️",
+        databaseStatus: "Connected (PostgreSQL) 🗄️",
         aiConnection: "Ready 🤖",
         ipAddress: localIp,
         uptime: `${hours}h ${minutes}m ${seconds}s`,
@@ -262,3 +279,6 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`🔗 Click to view database logic: http://localhost:${PORT}/api/view`);
     console.log(`🏥 Backend is ready to receive data on port ${PORT}\n`);
 });
+
+
+
