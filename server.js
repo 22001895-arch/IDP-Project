@@ -3,7 +3,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
-const { AzureOpenAI } = require("openai"); // 👈 CHANGED: Now using Azure OpenAI
+const { AzureOpenAI } = require("openai"); 
 const os = require('os');
 const path = require('path');
 
@@ -38,8 +38,8 @@ const verifyApiKey = (req, res, next) => {
 const aiClient = new AzureOpenAI({
     endpoint: process.env.AZURE_OPENAI_ENDPOINT,
     apiKey: process.env.AZURE_OPENAI_API_KEY,
-    apiVersion: "2024-02-01", // Standard API version for Azure Chat
-    deployment: process.env.DEPLOYMENT_NAME // e.g., gpt-4.1-mini
+    apiVersion: "2024-02-01", 
+    deployment: process.env.DEPLOYMENT_NAME 
 });
 
 // --- DATABASE SETUP (PostgreSQL) ---
@@ -62,7 +62,7 @@ const initializeDatabase = async () => {
             ppi TEXT,
             respiratory_rate TEXT,
             hrv TEXT,
-            spo2 TEXT,
+            heart_rate TEXT, /* 👈 CHANGED */
             redflag TEXT,
             ai_summary TEXT,
             triage_zone TEXT,
@@ -154,7 +154,7 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
                 Analyze the following patient data:
                 Complaints: ${JSON.stringify(patientData.complaints)}
                 Details: ${JSON.stringify(patientData.details)}
-                Vitals: PPI=${patientData.ppi}, RespRate=${patientData.respiratory_rate}, HRV=${patientData.hrv}, SpO2=${patientData.spo2}
+                Vitals: PPI=${patientData.ppi}, RespRate=${patientData.respiratory_rate}, HRV=${patientData.hrv}, HeartRate=${patientData.heart_rate}
 
                 TASK:
                 1. Categorize as RED, YELLOW, or GREEN.
@@ -164,11 +164,10 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
                 Example: {"zone": "GREEN", "summary": "Patient is stable."}
             `;
 
-            // 👈 CHANGED: Azure OpenAI Call
             const result = await aiClient.chat.completions.create({
                 messages: [{ role: "system", content: prompt }],
                 model: process.env.DEPLOYMENT_NAME,
-                response_format: { type: "json_object" } // Forces strict JSON output
+                response_format: { type: "json_object" } 
             });
             
             finalTriage = JSON.parse(result.choices[0].message.content);
@@ -184,7 +183,6 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
                 Return ONLY JSON: {"summary": "..."}
             `;
             
-            // 👈 CHANGED: Azure OpenAI Notes Call
             const notesResult = await aiClient.chat.completions.create({
                 messages: [{ role: "system", content: notesPrompt }],
                 model: process.env.DEPLOYMENT_NAME,
@@ -197,10 +195,12 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
 
         console.log("Step 5: Writing to database...");
         
+        // 👈 CHANGED: SQL Query
         const sql = `INSERT INTO patients 
-            (id, complaints, details, final_notes_raw, ppi, respiratory_rate, hrv, spo2, redflag, ai_summary, triage_zone, final_note_summarized) 
+            (id, complaints, details, final_notes_raw, ppi, respiratory_rate, hrv, heart_rate, redflag, ai_summary, triage_zone, final_note_summarized) 
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`;
         
+        // 👈 CHANGED: Values array
         const values = [
             id,
             JSON.stringify(patientData.complaints),
@@ -209,7 +209,7 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
             patientData.ppi,
             patientData.respiratory_rate,
             patientData.hrv,
-            patientData.spo2,
+            patientData.heart_rate,
             redFlagStatus,
             finalTriage.summary || "No summary",
             finalTriage.zone || "UNKNOWN",
@@ -232,14 +232,16 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
             summary: error.message.includes("429") ? "Quota hit. Manual triage required." : "System Error." 
         };
 
+        // 👈 CHANGED: Fallback SQL Query
         const fallbackSql = `INSERT INTO patients 
-            (id, complaints, details, final_notes_raw, ppi, respiratory_rate, hrv, spo2, redflag, ai_summary, triage_zone, final_note_summarized) 
+            (id, complaints, details, final_notes_raw, ppi, respiratory_rate, hrv, heart_rate, redflag, ai_summary, triage_zone, final_note_summarized) 
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`;
             
+        // 👈 CHANGED: Fallback Values array
         const fallbackValues = [
             id, JSON.stringify(patientData.complaints), JSON.stringify(patientData.details),
             patientData.final_notes_raw, patientData.ppi, patientData.respiratory_rate,
-            patientData.hrv, patientData.spo2, "Unknown", fallbackResponse.summary,
+            patientData.hrv, patientData.heart_rate, "Unknown", fallbackResponse.summary,
             fallbackResponse.zone, "Error generating notes"
         ];
 
@@ -291,13 +293,25 @@ app.get('/api/status', (req, res) => {
     res.json({
         serverStatus: "Online 🟢",
         databaseStatus: "Connected (PostgreSQL) 🗄️",
-        aiConnection: "Ready (Azure) 🤖", // 👈 CHANGED STATUS MESSAGE
+        aiConnection: "Ready (Azure) 🤖", 
         ipAddress: localIp,
         uptime: `${hours}h ${minutes}m ${seconds}s`,
         memoryUsed: `${memoryUsedMB} MB`,
         waitingRoomCount: Object.keys(waitingRoom).length,
         waitingPatients: Object.keys(waitingRoom)
     });
+});
+
+// ==========================================
+// 🛠️ SECRET ROUTE: Fix Database Columns!
+// ==========================================
+app.get('/api/fix-db', async (req, res) => {
+    try {
+        await pool.query(`ALTER TABLE patients RENAME COLUMN spo2 TO heart_rate;`);
+        res.send("✅ Database column successfully renamed from spo2 to heart_rate!");
+    } catch (err) {
+        res.status(500).send(`❌ Error (it might already be fixed!): ${err.message}`);
+    }
 });
 
 const PORT = process.env.PORT || 5000;
