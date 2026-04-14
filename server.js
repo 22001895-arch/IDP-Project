@@ -1,14 +1,14 @@
 // server.js - Centralized Smart Backend
-require('dotenv').config(); 
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const { Pool } = require('pg'); 
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { Pool } = require('pg');
+const { AzureOpenAI } = require("openai"); // 👈 CHANGED: Now using Azure OpenAI
 const os = require('os');
 const path = require('path');
 
 // Import your Hard Rules
-const { checkHardRules } = require('./triageRules.js'); 
+const { checkHardRules } = require('./triageRules.js');
 
 const app = express();
 app.use(cors());
@@ -29,15 +29,17 @@ const verifyApiKey = (req, res, next) => {
     }
     
     // If the key matches, open the door and run the route!
-    next(); 
+    next();
 };
 
-// --- AI CONFIGURATION ---
-const GEMINI_API_KEY = process.env.GOOGLE_API_KEY;
-const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ 
-    model: "gemini-2.5-flash", 
-    generationConfig: { responseMimeType: "application/json" }
+// ==========================================
+// 🧠 AZURE AI CONFIGURATION 
+// ==========================================
+const aiClient = new AzureOpenAI({
+    endpoint: process.env.AZURE_OPENAI_ENDPOINT,
+    apiKey: process.env.AZURE_OPENAI_API_KEY,
+    apiVersion: "2024-02-01", // Standard API version for Azure Chat
+    deployment: process.env.DEPLOYMENT_NAME // e.g., gpt-4.1-mini
 });
 
 // --- DATABASE SETUP (PostgreSQL) ---
@@ -133,7 +135,7 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
     // ==========================================
     console.log(`✅ All data received for Patient ${id}! Starting Triage...`);
 
-    let finalTriage = {}; 
+    let finalTriage = {};
     let redFlagStatus = "No";
     let notesSummary = "No additional notes provided.";
 
@@ -143,10 +145,10 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
 
         if (ruleResult) {
             console.log("🚨 Rule Triggered:", ruleResult.zone);
-            finalTriage = ruleResult; 
+            finalTriage = ruleResult;
             redFlagStatus = "Yes";
         } else {
-            console.log("Step 3: No Red Flags found. Sending to Gemini...");
+            console.log("Step 3: No Red Flags found. Sending to Azure OpenAI...");
             const prompt = `
                 You are a medical triage system.
                 Analyze the following patient data:
@@ -158,13 +160,18 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
                 1. Categorize as RED, YELLOW, or GREEN.
                 2. Write a 2-sentence summary.
 
-                IMPORTANT: Return ONLY a raw JSON object. No markdown, no backticks.
+                IMPORTANT: Return ONLY a raw JSON object. 
                 Example: {"zone": "GREEN", "summary": "Patient is stable."}
             `;
 
-            const result = await model.generateContent(prompt);
-            let text = result.response.text().replace(/```json/g, '').replace(/```/g, '').trim();
-            finalTriage = JSON.parse(text);
+            // 👈 CHANGED: Azure OpenAI Call
+            const result = await aiClient.chat.completions.create({
+                messages: [{ role: "system", content: prompt }],
+                model: process.env.DEPLOYMENT_NAME,
+                response_format: { type: "json_object" } // Forces strict JSON output
+            });
+            
+            finalTriage = JSON.parse(result.choices[0].message.content);
             redFlagStatus = "No";
             console.log("Step 4: AI Result Generated ->", finalTriage.zone);
         }
@@ -176,9 +183,16 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
                 "${patientData.final_notes_raw}"
                 Return ONLY JSON: {"summary": "..."}
             `;
-            const notesResult = await model.generateContent(notesPrompt);
-            let notesText = notesResult.response.text().replace(/```json/g, '').replace(/```/g, '').trim();
-            notesSummary = JSON.parse(notesText).summary;
+            
+            // 👈 CHANGED: Azure OpenAI Notes Call
+            const notesResult = await aiClient.chat.completions.create({
+                messages: [{ role: "system", content: notesPrompt }],
+                model: process.env.DEPLOYMENT_NAME,
+                response_format: { type: "json_object" }
+            });
+
+            const parsedNotes = JSON.parse(notesResult.choices[0].message.content);
+            notesSummary = parsedNotes.summary;
         }
 
         console.log("Step 5: Writing to database...");
@@ -188,17 +202,17 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`;
         
         const values = [
-            id, 
-            JSON.stringify(patientData.complaints), 
-            JSON.stringify(patientData.details), 
-            patientData.final_notes_raw, 
-            patientData.ppi, 
-            patientData.respiratory_rate, 
-            patientData.hrv, 
-            patientData.spo2, 
-            redFlagStatus, 
-            finalTriage.summary || "No summary", 
-            finalTriage.zone || "UNKNOWN", 
+            id,
+            JSON.stringify(patientData.complaints),
+            JSON.stringify(patientData.details),
+            patientData.final_notes_raw,
+            patientData.ppi,
+            patientData.respiratory_rate,
+            patientData.hrv,
+            patientData.spo2,
+            redFlagStatus,
+            finalTriage.summary || "No summary",
+            finalTriage.zone || "UNKNOWN",
             notesSummary
         ];
 
@@ -208,7 +222,7 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
         
         delete waitingRoom[id];
 
-        res.json({ success: true, triage: finalTriage }); 
+        res.json({ success: true, triage: finalTriage });
 
     } catch (error) {
         console.error("❌ Error Details:", error.message);
@@ -223,18 +237,10 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`;
             
         const fallbackValues = [
-            id, 
-            JSON.stringify(patientData.complaints), 
-            JSON.stringify(patientData.details), 
-            patientData.final_notes_raw, 
-            patientData.ppi, 
-            patientData.respiratory_rate, 
-            patientData.hrv, 
-            patientData.spo2, 
-            "Unknown", 
-            fallbackResponse.summary, 
-            fallbackResponse.zone, 
-            "Error generating notes"
+            id, JSON.stringify(patientData.complaints), JSON.stringify(patientData.details),
+            patientData.final_notes_raw, patientData.ppi, patientData.respiratory_rate,
+            patientData.hrv, patientData.spo2, "Unknown", fallbackResponse.summary,
+            fallbackResponse.zone, "Error generating notes"
         ];
 
         try {
@@ -242,7 +248,7 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
         } catch (dbError) {
             console.error("❌ Fallback DB Error:", dbError.message);
         } finally {
-            delete waitingRoom[id]; 
+            delete waitingRoom[id];
             res.status(500).json({ error: "Processing failed", details: fallbackResponse });
         }
     }
@@ -254,7 +260,7 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
 app.get('/api/view', async (req, res) => {
     try {
         const result = await pool.query(`SELECT * FROM patients ORDER BY created_at DESC`);
-        res.json(result.rows); 
+        res.json(result.rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -285,18 +291,16 @@ app.get('/api/status', (req, res) => {
     res.json({
         serverStatus: "Online 🟢",
         databaseStatus: "Connected (PostgreSQL) 🗄️",
-        aiConnection: "Ready 🤖",
+        aiConnection: "Ready (Azure) 🤖", // 👈 CHANGED STATUS MESSAGE
         ipAddress: localIp,
         uptime: `${hours}h ${minutes}m ${seconds}s`,
         memoryUsed: `${memoryUsedMB} MB`,
         waitingRoomCount: Object.keys(waitingRoom).length,
-        waitingPatients: Object.keys(waitingRoom) 
+        waitingPatients: Object.keys(waitingRoom)
     });
 });
 
-// <-- ADDED: process.env.PORT so Render can assign its own port!
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`\n🚀 Smart Server is running on port ${PORT}!`);
-    console.log(`🏥 Backend is ready to receive data\n`);
+    console.log(`\n🚀 Central Cloud Server is running on Port ${PORT}!`);
 });
