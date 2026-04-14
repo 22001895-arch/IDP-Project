@@ -129,7 +129,7 @@
         }
 
         pre {
-            background: #12121c !important; /* Overrides old light gray */
+            background: #12121c !important; 
             color: #00d2ff;
             border: 1px solid #3a3a5a;
             padding: 10px;
@@ -178,7 +178,7 @@
 
             <div class="data-section">
                 <h3>🩺 Vitals</h3>
-                <p><strong>PPI:</strong> <span id="modal-ppi"></span> | <strong>Resp Rate:</strong> <span id="modal-resp"></span> | <strong>HRV:</strong> <span id="modal-hrv"></span> | <strong>SpO2:</strong> <span id="modal-spo2"></span></p>
+                <p><strong>PPI:</strong> <span id="modal-ppi"></span> | <strong>Resp Rate:</strong> <span id="modal-resp"></span> | <strong>HRV:</strong> <span id="modal-hrv"></span> | <strong>Heart Rate:</strong> <span id="modal-heart-rate"></span></p>
             </div>
 
             <div class="data-section">
@@ -196,7 +196,6 @@
     </div>
 
     <script>
-        // 🔴 CHANGED FROM LOCALHOST TO RELATIVE PATH
         const SERVER_URL = "/api/view"; 
         let allPatients = [];
 
@@ -217,7 +216,6 @@
                         if (Array.isArray(parsed)) displayComplaints = parsed.join(", ");
                     } catch(e) { /* leave as is */ }
 
-                    // 🚨 Logic to check if this row needs the red background
                     const isRedFlag = patient.redflag === "Yes";
                     const rowClass = isRedFlag ? "critical-row" : "";
                     const redFlagIcon = isRedFlag ? "⚠️ YES" : "No";
@@ -246,7 +244,6 @@
             document.getElementById('modal-title').innerText = `Patient Details: ID ${patient.id}`;
             document.getElementById('modal-redflag').innerText = patient.redflag || "Unknown";
             
-            // Format AI Summary with color
             document.getElementById('modal-summary').innerText = patient.ai_summary || "No AI summary available.";
             document.getElementById('modal-notes-summary').innerText = patient.final_note_summarized || "N/A";
             document.getElementById('modal-raw-notes').innerText = `"${patient.final_notes_raw || "None"}"`;
@@ -254,7 +251,9 @@
             document.getElementById('modal-ppi').innerText = patient.ppi || "N/A";
             document.getElementById('modal-resp').innerText = patient.respiratory_rate || "N/A";
             document.getElementById('modal-hrv').innerText = patient.hrv || "N/A";
-            document.getElementById('modal-spo2').innerText = patient.spo2 || "N/A";
+            
+            // 👈 CHANGED: Now looking for patient.heart_rate instead of patient.spo2
+            document.getElementById('modal-heart-rate').innerText = patient.heart_rate || "N/A";
 
             const zoneElement = document.getElementById('modal-zone');
             zoneElement.innerText = patient.triage_zone || "UNKNOWN";
