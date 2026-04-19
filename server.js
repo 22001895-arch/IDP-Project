@@ -2,12 +2,12 @@
 require('dotenv').config(); 
 const express = require('express');
 const cors = require('cors');
-const { Pool } = require('pg'); // <-- Swapped from sqlite3 to pg
+const { createClient } = require('@supabase/supabase-js');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const os = require('os');
 
 // Import your Hard Rules
-const { checkHardRules } = require('./triageRules.js'); 
+const { checkHardRules, detectRedFlags } = require('./triageRules.js');
 
 const app = express();
 app.use(cors());
@@ -21,41 +21,27 @@ const model = genAI.getGenerativeModel({
     generationConfig: { responseMimeType: "application/json" }
 });
 
-// --- DATABASE SETUP (PostgreSQL) ---
-const pool = new Pool({
-    // It will look for DATABASE_URL in your .env file
-    // Example format: postgres://user:password@localhost:5432/hospital_db
-    connectionString: process.env.DATABASE_URL || "postgres://postgres:password@localhost:5432/hospital_db"
-});
+// --- DATABASE SETUP (Supabase) ---
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
-pool.on('connect', () => {
-    console.log("🗄️ Connected to PostgreSQL Central Database!");
-});
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+    console.warn("⚠️ Warning: Supabase credentials missing in .env!");
+}
 
-// Create the 12-column table (using async/await)
-const initializeDatabase = async () => {
-    try {
-        await pool.query(`CREATE TABLE IF NOT EXISTS patients (
-            id TEXT PRIMARY KEY,
-            complaints TEXT,
-            details TEXT,
-            final_notes_raw TEXT,
-            ppi TEXT,
-            respiratory_rate TEXT,
-            hrv TEXT,
-            spo2 TEXT,
-            redflag TEXT,
-            ai_summary TEXT,
-            triage_zone TEXT,
-            final_note_summarized TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )`);
-        console.log("✅ Database table verified!");
-    } catch (err) {
-        console.error("❌ Database initialization error:", err.message);
-    }
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+console.log("🗄️ Supabase client initialized.");
+
+// --- SCHEMA NOTE ---
+// Unlike local SQLite/PG, we typically create tables via the Supabase Dashboard.
+// Ensure you have 'patients' and 'red_flags' tables created.
+// To enable real-time on 'red_flags', go to:
+// Database -> Replication -> enable 'Realtime' for the 'red_flags' table.
+const verifySupabase = () => {
+    console.log("✅ Ready to sync with Supabase Cloud!");
 };
-initializeDatabase();
+verifySupabase();
 
 // ==========================================
 // 🏥 THE WAITING ROOM (In-Memory Buffer)
@@ -101,13 +87,24 @@ app.post('/api/sync/history', async (req, res) => {
     }
 
     // ==========================================
-    // 🚀 WE HAVE BOTH! RUN THE AI PIPELINE!
+    // 🚀 WE HAVE BOTH! RUN THE PIPELINE!
     // ==========================================
     console.log(`✅ All data received for Patient ${id}! Starting Triage...`);
 
-    let finalTriage = {}; 
-    let redFlagStatus = "No";
+    let finalTriage = {};
     let notesSummary = "No additional notes provided.";
+
+    // --- 🚨 STEP 0: RED FLAG DETECTION ---
+    console.log("Step 1: Running Red Flag Detection Engine...");
+    const detectedFlags = detectRedFlags(patientData.complaints, patientData.details);
+    const redFlagStatus = detectedFlags.length > 0 ? "Yes" : "No";
+
+    if (detectedFlags.length > 0) {
+        console.log(`🚨 ${detectedFlags.length} Red Flag(s) detected for Patient ${id}:`);
+        detectedFlags.forEach(f => console.log(`   [${f.priority}] ${f.msg}`));
+    } else {
+        console.log("✅ No Red Flags detected.");
+    }
 
     try {
         // --- STEP 1: CHECK HARD RULES ---
@@ -116,8 +113,7 @@ app.post('/api/sync/history', async (req, res) => {
 
         if (ruleResult) {
             console.log("🚨 Rule Triggered:", ruleResult.zone);
-            finalTriage = ruleResult; 
-            redFlagStatus = "Yes";
+            finalTriage = ruleResult;
         } else {
             // --- STEP 2: CALL GEMINI ---
             console.log("Step 3: No Red Flags found. Sending to Gemini...");
@@ -139,7 +135,6 @@ app.post('/api/sync/history', async (req, res) => {
             const result = await model.generateContent(prompt);
             let text = result.response.text().replace(/```json/g, '').replace(/```/g, '').trim();
             finalTriage = JSON.parse(text);
-            redFlagStatus = "No";
             console.log("Step 4: AI Result Generated ->", finalTriage.zone);
         }
         
@@ -156,37 +151,55 @@ app.post('/api/sync/history', async (req, res) => {
             notesSummary = JSON.parse(notesText).summary;
         }
 
-        // --- STEP 3: DATABASE STORAGE (PostgreSQL handles it with async/await) ---
-        console.log("Step 5: Writing to database...");
+        // --- STEP 3: DATABASE STORAGE (Supabase) ---
+        console.log("Step 5: Writing patient record to Supabase...");
         
-        // Notice the $1, $2 placeholders instead of ?
-        const sql = `INSERT INTO patients 
-            (id, complaints, details, final_notes_raw, ppi, respiratory_rate, hrv, spo2, redflag, ai_summary, triage_zone, final_note_summarized) 
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`;
-        
-        const values = [
-            id, 
-            JSON.stringify(patientData.complaints), 
-            JSON.stringify(patientData.details), 
-            patientData.final_notes_raw, 
-            patientData.ppi, 
-            patientData.respiratory_rate, 
-            patientData.hrv, 
-            patientData.spo2, 
-            redFlagStatus, 
-            finalTriage.summary || "No summary", 
-            finalTriage.zone || "UNKNOWN", 
-            notesSummary
-        ];
+        const { error: patientError } = await supabase
+            .from('patients')
+            .upsert({
+                id,
+                complaints: JSON.stringify(patientData.complaints),
+                details: JSON.stringify(patientData.details),
+                final_notes_raw: patientData.final_notes_raw,
+                ppi: patientData.ppi,
+                respiratory_rate: patientData.respiratory_rate,
+                hrv: patientData.hrv,
+                spo2: patientData.spo2,
+                redflag: redFlagStatus,
+                ai_summary: finalTriage.summary || "No summary",
+                triage_zone: finalTriage.zone || "UNKNOWN",
+                final_note_summarized: notesSummary
+            });
 
-        await pool.query(sql, values);
+        if (patientError) throw patientError;
         
-        console.log("Step 6: Saved to DB successfully!");
-        
+        console.log("Step 6: Patient record saved!");
+
+        // --- 🚨 STEP 4: SAVE RED FLAGS & TRIGGER REALTIME ---
+        if (detectedFlags.length > 0) {
+            console.log(`Step 7: Pushing ${detectedFlags.length} flags to Supabase (Dashboard will update automatically)...`);
+            
+            const flagsToInsert = detectedFlags.map(flag => ({
+                patient_id: id,
+                complaint: flag.complaint,
+                question_id: flag.questionId,
+                answer: flag.answer,
+                msg: flag.msg,
+                priority: flag.priority
+            }));
+
+            const { error: flagError } = await supabase
+                .from('red_flags')
+                .insert(flagsToInsert);
+
+            if (flagError) console.error("❌ Error saving red flags:", flagError.message);
+            else console.log("🚨 Red flags pushed successfully.");
+        }
+
         // 🧹 CLEANUP: Remove patient from Waiting Room so memory stays clean
         delete waitingRoom[id];
 
-        res.json({ success: true, triage: finalTriage }); 
+        res.json({ success: true, triage: finalTriage, redFlags: detectedFlags });
 
     } catch (error) {
         console.error("❌ Error Details:", error.message);
@@ -196,30 +209,24 @@ app.post('/api/sync/history', async (req, res) => {
             summary: error.message.includes("429") ? "Quota hit. Manual triage required." : "System Error." 
         };
 
-        const fallbackSql = `INSERT INTO patients 
-            (id, complaints, details, final_notes_raw, ppi, respiratory_rate, hrv, spo2, redflag, ai_summary, triage_zone, final_note_summarized) 
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`;
-            
-        const fallbackValues = [
-            id, 
-            JSON.stringify(patientData.complaints), 
-            JSON.stringify(patientData.details), 
-            patientData.final_notes_raw, 
-            patientData.ppi, 
-            patientData.respiratory_rate, 
-            patientData.hrv, 
-            patientData.spo2, 
-            "Unknown", 
-            fallbackResponse.summary, 
-            fallbackResponse.zone, 
-            "Error generating notes"
-        ];
+        const { error: fallbackError } = await supabase
+            .from('patients')
+            .upsert({
+                id,
+                complaints: JSON.stringify(patientData.complaints),
+                details: JSON.stringify(patientData.details),
+                final_notes_raw: patientData.final_notes_raw,
+                ppi: patientData.ppi,
+                respiratory_rate: patientData.respiratory_rate,
+                hrv: patientData.hrv,
+                spo2: patientData.spo2,
+                redflag: "Unknown",
+                ai_summary: fallbackResponse.summary,
+                triage_zone: fallbackResponse.zone,
+                final_note_summarized: "Error generating notes"
+            });
 
-        try {
-            await pool.query(fallbackSql, fallbackValues);
-        } catch (dbError) {
-            console.error("❌ Fallback DB Error:", dbError.message);
-        } finally {
+        if (fallbackError) console.error("❌ Fallback DB Error:", fallbackError.message);
             delete waitingRoom[id]; // Cleanup even on failure
             res.status(500).json({ error: "Processing failed", details: fallbackResponse });
         }
@@ -227,13 +234,17 @@ app.post('/api/sync/history', async (req, res) => {
 });
 
 // ==========================================
-// 📤 ROUTE 2: GIVE JSON (To your index.html)
+// 📤 ROUTE 2: GET HISTORICAL RECORDS
 // ==========================================
 app.get('/api/view', async (req, res) => {
     try {
-        // Postgres returns data in the .rows property
-        const result = await pool.query(`SELECT * FROM patients ORDER BY created_at DESC`);
-        res.json(result.rows); 
+        const { data, error } = await supabase
+            .from('patients')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        res.json(data); 
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -263,7 +274,7 @@ app.get('/api/status', (req, res) => {
 
     res.json({
         serverStatus: "Online 🟢",
-        databaseStatus: "Connected (PostgreSQL) 🗄️",
+        databaseStatus: "Supabase Cloud ☁️",
         aiConnection: "Ready 🤖",
         ipAddress: localIp,
         uptime: `${hours}h ${minutes}m ${seconds}s`,
