@@ -7,8 +7,8 @@ const { AzureOpenAI } = require("openai");
 const os = require('os');
 const path = require('path');
 
-// Import your Hard Rules
-const { checkHardRules } = require('./triageRules.js');
+// Import your Hard Rules & Red Flag Detection Engine
+const { checkHardRules, detectRedFlags } = require('./triageRules.js');
 
 const app = express();
 app.use(cors());
@@ -117,6 +117,14 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
     
     const patientData = waitingRoom[id];
 
+    // --- 🛡️ DEFENSIVE PARSING: Ensure data is in Object/Array format ---
+    if (typeof patientData.complaints === 'string') {
+        try { patientData.complaints = JSON.parse(patientData.complaints); } catch (e) { console.warn("⚠️ Failed to parse complaints string"); }
+    }
+    if (typeof patientData.details === 'string') {
+        try { patientData.details = JSON.parse(patientData.details); } catch (e) { console.warn("⚠️ Failed to parse details string"); }
+    }
+
     const hasHistory = patientData.complaints && patientData.details;
     const hasVitals = patientData.ppi && patientData.respiratory_rate;
 
@@ -136,8 +144,19 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
     console.log(`✅ All data received for Patient ${id}! Starting Triage...`);
 
     let finalTriage = {};
-    let redFlagStatus = "No";
     let notesSummary = "No additional notes provided.";
+
+    // --- 🚨 STEP 0: RED FLAG DETECTION ---
+    console.log("Step 1: Running Red Flag Detection Engine...");
+    const detectedFlags = detectRedFlags(patientData.complaints, patientData.details);
+    let redFlagStatus = detectedFlags.length > 0 ? "Yes" : "No";
+
+    if (detectedFlags.length > 0) {
+        console.log(`🚨 ${detectedFlags.length} Red Flag(s) detected for Patient ${id}:`);
+        detectedFlags.forEach(f => console.log(`   [${f.priority}] ${f.msg}`));
+    } else {
+        console.log("✅ No Red Flags detected.");
+    }
 
     try {
         console.log("Step 2: Checking Medical Safety Rules...");
@@ -146,7 +165,7 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
         if (ruleResult) {
             console.log("🚨 Rule Triggered:", ruleResult.zone);
             finalTriage = ruleResult;
-            redFlagStatus = "Yes";
+            redFlagStatus = "Yes"; // Ensure Yes when hard rule fires too
         } else {
             console.log("Step 3: No Red Flags found. Sending to Azure OpenAI...");
             const prompt = `
