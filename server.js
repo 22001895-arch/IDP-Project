@@ -190,7 +190,6 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
             });
             
             finalTriage = JSON.parse(result.choices[0].message.content);
-            redFlagStatus = "No";
             console.log("Step 4: AI Result Generated ->", finalTriage.zone);
         }
         
