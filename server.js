@@ -72,6 +72,14 @@ app.post('/api/sync/history', async (req, res) => {
     
     const patientData = waitingRoom[id];
 
+    // --- 🛡️ DEFENSIVE PARSING: Ensure data is in Object/Array format ---
+    if (typeof patientData.complaints === 'string') {
+        try { patientData.complaints = JSON.parse(patientData.complaints); } catch (e) { console.warn("⚠️ Failed to parse complaints string"); }
+    }
+    if (typeof patientData.details === 'string') {
+        try { patientData.details = JSON.parse(patientData.details); } catch (e) { console.warn("⚠️ Failed to parse details string"); }
+    }
+
     // 3. Check what is missing
     const hasHistory = patientData.complaints && patientData.details;
     const hasVitals = patientData.ppi && patientData.respiratory_rate;
@@ -227,9 +235,9 @@ app.post('/api/sync/history', async (req, res) => {
             });
 
         if (fallbackError) console.error("❌ Fallback DB Error:", fallbackError.message);
-            delete waitingRoom[id]; // Cleanup even on failure
-            res.status(500).json({ error: "Processing failed", details: fallbackResponse });
-        }
+        
+        delete waitingRoom[id]; // Cleanup even on failure
+        res.status(500).json({ error: "Processing failed", details: fallbackResponse });
     }
 });
 
