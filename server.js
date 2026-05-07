@@ -190,6 +190,7 @@ app.post('/api/sync/history', async (req, res) => {
             const flagsToInsert = detectedFlags.map(flag => ({
                 patient_id: id,
                 complaint: flag.complaint,
+                triggered_by_rule_id: flag.triggeredByRuleId,  // 🔑 The rule ID that triggered this red flag
                 question_id: flag.questionId,
                 answer: flag.answer,
                 msg: flag.msg,
@@ -288,7 +289,8 @@ app.get('/api/status', (req, res) => {
         uptime: `${hours}h ${minutes}m ${seconds}s`,
         memoryUsed: `${memoryUsedMB} MB`,
         waitingRoomCount: Object.keys(waitingRoom).length,
-        waitingPatients: Object.keys(waitingRoom) 
+        waitingPatients: Object.keys(waitingRoom),
+        waitingRoomData: waitingRoom  // Include full waiting room data for the modal
     });
 });
 

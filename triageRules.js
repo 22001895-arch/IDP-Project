@@ -153,7 +153,8 @@ const detectRedFlags = (complaints, details) => {
       if (rule.trigger(answer)) {
         detectedFlags.push({
           complaint,
-          questionId: rule.id,
+          triggeredByRuleId: rule.id,  // 🔑 The ID of the rule that triggered this red flag
+          questionId: rule.id,         // (kept for backward compatibility)
           answer:     String(answer),
           msg:        `[${rule.id}]: ${answer}`,
           priority:   rule.priority,

@@ -108,6 +108,124 @@
             color: #888;
             text-align: right;
         }
+
+        /* Modal Styling */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #2a2a40;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            border: 2px solid #00d2ff;
+            box-shadow: 0 0 30px rgba(0, 210, 255, 0.5);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #00d2ff;
+            padding-bottom: 15px;
+        }
+
+        .modal-header h2 {
+            color: #00d2ff;
+            margin: 0;
+        }
+
+        .close-btn {
+            background: #ff6b6b;
+            color: #fff;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .close-btn:hover {
+            background: #ff5252;
+        }
+
+        .patient-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .patient-table th {
+            background: #1e1e2f;
+            color: #00d2ff;
+            padding: 12px;
+            text-align: left;
+            border-bottom: 2px solid #00d2ff;
+            font-weight: bold;
+        }
+
+        .patient-table td {
+            padding: 12px;
+            border-bottom: 1px solid #3a3a5a;
+            color: #cdd6f4;
+        }
+
+        .patient-table tr:hover {
+            background: #333345;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .status-complete {
+            background: #4caf50;
+            color: white;
+        }
+
+        .status-partial {
+            background: #ff9800;
+            color: white;
+        }
+
+        .clickable-card {
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .clickable-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 24px rgba(0, 210, 255, 0.4);
+        }
+
+        .no-data {
+            color: #888;
+            font-style: italic;
+            text-align: center;
+            padding: 20px;
+        }
     </style>
 </head>
 <body>
@@ -145,11 +263,24 @@
             <div class="value" id="stat-db" style="font-size: 28px; line-height: 1.4;">Loading...</div>
         </div>
 
-        <div class="card warning">
-            <h3>Patients in Waiting Room</h3>
+        <div class="card warning clickable-card" id="waiting-room-card">
+            <h3>👁️ Patients in Waiting Room (Click to View)</h3>
             <div class="value" id="stat-waiting-count">0</div>
             <div class="waiting-room-list" id="stat-waiting-list">
                 No patients currently buffering.
+            </div>
+        </div>
+    </div>
+
+    <!-- 📋 Modal for Waiting Room Details -->
+    <div class="modal" id="waiting-room-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🏥 Patients in Waiting Room</h2>
+                <button class="close-btn" id="close-modal">✕ Close</button>
+            </div>
+            <div id="modal-body">
+                <div class="no-data">Loading patient data...</div>
             </div>
         </div>
     </div>
@@ -159,6 +290,75 @@
     <script>
         // 🔴 Make sure this matches your server port!
         const STATUS_URL = "http://localhost:3000/api/status"; 
+        const WAITING_ROOM_URL = "http://localhost:3000/api/waiting-room";
+
+        let currentWaitingRoomData = {};
+
+        // Modal Control
+        function openWaitingRoomModal() {
+            document.getElementById('waiting-room-modal').classList.add('show');
+            displayWaitingRoomTable();
+        }
+
+        function closeWaitingRoomModal() {
+            document.getElementById('waiting-room-modal').classList.remove('show');
+        }
+
+        // Fetch detailed waiting room data
+        async function displayWaitingRoomTable() {
+            const modalBody = document.getElementById('modal-body');
+            
+            if (Object.keys(currentWaitingRoomData).length === 0) {
+                modalBody.innerHTML = '<div class="no-data">No patients in waiting room.</div>';
+                return;
+            }
+
+            let tableHTML = `
+                <table class="patient-table">
+                    <thead>
+                        <tr>
+                            <th>Patient ID</th>
+                            <th>History Data</th>
+                            <th>Vitals (rPPG)</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            for (const [patientId, data] of Object.entries(currentWaitingRoomData)) {
+                const hasHistory = data.complaints && data.details;
+                const hasVitals = data.ppi && data.respiratory_rate;
+                
+                let statusBadge = '';
+                if (hasHistory && hasVitals) {
+                    statusBadge = '<span class="status-badge status-complete">✓ Ready</span>';
+                } else if (hasHistory || hasVitals) {
+                    statusBadge = '<span class="status-badge status-partial">⏳ Partial</span>';
+                } else {
+                    statusBadge = '<span class="status-badge status-partial">⏳ Empty</span>';
+                }
+
+                const historyStatus = hasHistory ? '✓ Yes' : '✗ No';
+                const vitalsStatus = hasVitals ? '✓ Yes' : '✗ No';
+
+                tableHTML += `
+                    <tr>
+                        <td><strong>${patientId}</strong></td>
+                        <td>${historyStatus}</td>
+                        <td>${vitalsStatus}</td>
+                        <td>${statusBadge}</td>
+                    </tr>
+                `;
+            }
+
+            tableHTML += `
+                    </tbody>
+                </table>
+            `;
+
+            modalBody.innerHTML = tableHTML;
+        }
 
         async function fetchSystemStatus() {
             try {
@@ -176,6 +376,7 @@
                 
                 // Update Waiting Room
                 document.getElementById('stat-waiting-count').innerText = data.waitingRoomCount;
+                currentWaitingRoomData = data.waitingRoomData || {};
                 
                 const waitingList = document.getElementById('stat-waiting-list');
                 if (data.waitingPatients.length > 0) {
@@ -190,6 +391,18 @@
                 document.getElementById('stat-server').style.color = "red";
             }
         }
+
+        // Event Listeners
+        document.getElementById('waiting-room-card').addEventListener('click', openWaitingRoomModal);
+        document.getElementById('close-modal').addEventListener('click', closeWaitingRoomModal);
+        
+        // Close modal when clicking outside of it
+        window.addEventListener('click', (e) => {
+            const modal = document.getElementById('waiting-room-modal');
+            if (e.target === modal) {
+                closeWaitingRoomModal();
+            }
+        });
 
         // Fetch immediately, then loop every 2 seconds
         fetchSystemStatus();
