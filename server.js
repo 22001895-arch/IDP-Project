@@ -117,6 +117,23 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
     
     const patientData = waitingRoom[id];
 
+    // --- 🛡️ Normalize payload fields for legacy/new rPPG formats ---
+    if (patientData.pi && !patientData.ppi) {
+        patientData.ppi = patientData.pi;
+    }
+    if (patientData.rr && !patientData.respiratory_rate) {
+        patientData.respiratory_rate = patientData.rr;
+    }
+    if (patientData.hr && !patientData.heart_rate) {
+        patientData.heart_rate = patientData.hr;
+    }
+    if (patientData.cv && !patientData.hrv) {
+        patientData.hrv = patientData.cv;
+    }
+    if (patientData.rhythm_status && !patientData.rythm_status) {
+        patientData.rythm_status = patientData.rhythm_status;
+    }
+
     // --- 🛡️ DEFENSIVE PARSING: Ensure data is in Object/Array format ---
     if (typeof patientData.complaints === 'string') {
         try { patientData.complaints = JSON.parse(patientData.complaints); } catch (e) { console.warn("⚠️ Failed to parse complaints string"); }
