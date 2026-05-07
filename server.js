@@ -154,6 +154,11 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
     if (detectedFlags.length > 0) {
         console.log(`🚨 ${detectedFlags.length} Red Flag(s) detected for Patient ${id}:`);
         detectedFlags.forEach(f => console.log(`   [${f.priority}] ${f.msg}`));
+        
+        // 👈 ADDED: Include triggered rule IDs in details JSON
+        const triggeredRuleIds = detectedFlags.map(f => f.questionId);
+        patientData.details.triggeredRedFlagRuleIds = triggeredRuleIds;
+        console.log(`   Triggered Rule IDs: ${triggeredRuleIds.join(", ")}`);
     } else {
         console.log("✅ No Red Flags detected.");
     }
@@ -321,7 +326,31 @@ app.get('/api/status', (req, res) => {
 });
 
 // ==========================================
-// 🛠️ SECRET ROUTE: Fix Database Columns!
+// � ROUTE 4: GET WAITING ROOM PATIENTS
+// ==========================================
+app.get('/api/waiting-room', (req, res) => {
+    const waitingRoomList = [];
+    for (const [id, data] of Object.entries(waitingRoom)) {
+        waitingRoomList.push({
+            id,
+            hasComplaints: !!data.complaints,
+            hasDetails: !!data.details,
+            hasPPI: !!data.ppi,
+            hasRespiratoryRate: !!data.respiratory_rate,
+            hasHRV: !!data.hrv,
+            hasHeartRate: !!data.heart_rate,
+            status: (data.complaints && data.details && data.ppi && data.respiratory_rate) 
+                ? "Complete - Ready for Triage" 
+                : data.complaints && data.details 
+                    ? "Waiting for Vitals (rPPG)" 
+                    : "Waiting for History"
+        });
+    }
+    res.json({ waitingRoom: waitingRoomList });
+});
+
+// ==========================================
+// �🛠️ SECRET ROUTE: Fix Database Columns!
 // ==========================================
 app.get('/api/fix-db', async (req, res) => {
     try {

@@ -102,6 +102,147 @@
             line-height: 1.5;
         }
 
+        /* 👈 NEW: Make waiting room card clickable */
+        .card.clickable {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .card.clickable:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 24px rgba(0,0,0,0.6);
+            border-left-color: #ffaa00;
+        }
+
+        .card.clickable .value {
+            color: #ffaa00;
+        }
+
+        /* 👈 NEW: Modal Styling */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background-color: #2a2a40;
+            margin: 5% auto;
+            padding: 30px;
+            border: 2px solid #00d2ff;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 1000px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 0 30px rgba(0, 210, 255, 0.3);
+        }
+
+        .modal-close {
+            color: #aaa;
+            float: right;
+            font-size: 32px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .modal-close:hover {
+            color: #fff;
+        }
+
+        .modal h2 {
+            color: #00d2ff;
+            margin-top: 0;
+            border-bottom: 2px solid #00d2ff;
+            padding-bottom: 15px;
+        }
+
+        .waiting-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 16px;
+        }
+
+        .waiting-table thead {
+            background-color: #1e1e2f;
+            border-bottom: 3px solid #00d2ff;
+        }
+
+        .waiting-table th {
+            padding: 15px;
+            text-align: left;
+            color: #00d2ff;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .waiting-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #3a3a5a;
+            color: #cdd6f4;
+        }
+
+        .waiting-table tbody tr:hover {
+            background-color: #3a3a50;
+        }
+
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-complete {
+            background-color: #00aa44;
+            color: #fff;
+        }
+
+        .status-waiting-vitals {
+            background-color: #ff9800;
+            color: #1e1e2f;
+        }
+
+        .status-waiting-history {
+            background-color: #ff3333;
+            color: #fff;
+        }
+
+        .data-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            margin: 2px;
+            display: inline-block;
+        }
+
+        .has-data {
+            background-color: #00aa44;
+            color: #fff;
+        }
+
+        .no-data {
+            background-color: #666;
+            color: #ccc;
+        }
+
         .refresh-notice {
             margin-top: 50px;
             font-size: 18px; /* Bigger footer text */
@@ -145,12 +286,35 @@
             <div class="value" id="stat-db" style="font-size: 28px; line-height: 1.4;">Loading...</div>
         </div>
 
-        <div class="card warning">
+        <div class="card warning clickable" id="waiting-room-card">
             <h3>Patients in Waiting Room</h3>
             <div class="value" id="stat-waiting-count">0</div>
             <div class="waiting-room-list" id="stat-waiting-list">
-                No patients currently buffering.
+                No patients currently buffering. Click to view details.
             </div>
+        </div>
+    </div>
+
+    <!-- 👈 NEW: Modal for Waiting Room Details -->
+    <div id="waitingRoomModal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" id="closeModal">&times;</span>
+            <h2>📋 Waiting Room Patients</h2>
+            <table class="waiting-table" id="waitingRoomTable">
+                <thead>
+                    <tr>
+                        <th>Patient ID</th>
+                        <th>Status</th>
+                        <th>History Data</th>
+                        <th>Vitals (rPPG)</th>
+                    </tr>
+                </thead>
+                <tbody id="waitingRoomTableBody">
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: #999;">Loading...</td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     </div>
 
@@ -158,7 +322,8 @@
 
     <script>
         // 🔴 CHANGED FROM LOCALHOST TO RELATIVE PATH
-        const STATUS_URL = "/api/status"; 
+        const STATUS_URL = "/api/status";
+        const WAITING_ROOM_URL = "/api/waiting-room";
 
         async function fetchSystemStatus() {
             try {
@@ -181,7 +346,7 @@
                 if (data.waitingPatients.length > 0) {
                     waitingList.innerText = "Pending IDs: " + data.waitingPatients.join(", ");
                 } else {
-                    waitingList.innerText = "No patients currently buffering.";
+                    waitingList.innerText = "No patients currently buffering. Click to view details.";
                 }
 
             } catch (error) {
@@ -190,6 +355,81 @@
                 document.getElementById('stat-server').style.color = "red";
             }
         }
+
+        // 👈 NEW: Fetch and display waiting room patients in modal
+        async function fetchWaitingRoomData() {
+            try {
+                const response = await fetch(WAITING_ROOM_URL);
+                if (!response.ok) throw new Error("Failed to fetch waiting room data");
+                
+                const data = await response.json();
+                const tableBody = document.getElementById('waitingRoomTableBody');
+                
+                if (data.waitingRoom.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #999;">No patients in waiting room</td></tr>';
+                    return;
+                }
+                
+                tableBody.innerHTML = data.waitingRoom.map(patient => {
+                    // Determine status badge
+                    let statusBadge = '';
+                    let statusClass = '';
+                    
+                    if (patient.status === "Complete - Ready for Triage") {
+                        statusBadge = '✅ Complete';
+                        statusClass = 'status-complete';
+                    } else if (patient.status === "Waiting for Vitals (rPPG)") {
+                        statusBadge = '⏳ Waiting Vitals';
+                        statusClass = 'status-waiting-vitals';
+                    } else {
+                        statusBadge = '⏳ Waiting History';
+                        statusClass = 'status-waiting-history';
+                    }
+                    
+                    return `
+                        <tr>
+                            <td><strong>${patient.id}</strong></td>
+                            <td><span class="status-badge ${statusClass}">${statusBadge}</span></td>
+                            <td>
+                                <span class="data-badge ${patient.hasComplaints ? 'has-data' : 'no-data'}">Complaints: ${patient.hasComplaints ? '✓' : '✗'}</span>
+                                <span class="data-badge ${patient.hasDetails ? 'has-data' : 'no-data'}">Details: ${patient.hasDetails ? '✓' : '✗'}</span>
+                            </td>
+                            <td>
+                                <span class="data-badge ${patient.hasPPI ? 'has-data' : 'no-data'}">PPI: ${patient.hasPPI ? '✓' : '✗'}</span>
+                                <span class="data-badge ${patient.hasRespiratoryRate ? 'has-data' : 'no-data'}">RR: ${patient.hasRespiratoryRate ? '✓' : '✗'}</span>
+                                <span class="data-badge ${patient.hasHRV ? 'has-data' : 'no-data'}">HRV: ${patient.hasHRV ? '✓' : '✗'}</span>
+                                <span class="data-badge ${patient.hasHeartRate ? 'has-data' : 'no-data'}">HR: ${patient.hasHeartRate ? '✓' : '✗'}</span>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+                
+            } catch (error) {
+                console.error("Error fetching waiting room data:", error);
+                document.getElementById('waitingRoomTableBody').innerHTML = 
+                    '<tr><td colspan="4" style="text-align: center; color: #f33;">Error loading waiting room data</td></tr>';
+            }
+        }
+
+        // 👈 NEW: Modal interactions
+        const modal = document.getElementById('waitingRoomModal');
+        const waitingRoomCard = document.getElementById('waiting-room-card');
+        const closeModal = document.getElementById('closeModal');
+
+        waitingRoomCard.addEventListener('click', () => {
+            modal.style.display = 'block';
+            fetchWaitingRoomData();
+        });
+
+        closeModal.addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+
+        window.addEventListener('click', (event) => {
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
 
         // Fetch immediately, then loop every 2 seconds
         fetchSystemStatus();
