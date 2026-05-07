@@ -385,14 +385,18 @@
                         statusBadge = '⏳ Waiting History';
                         statusClass = 'status-waiting-history';
                     }
+
+                    const complaintsText = patient.complaintsText || 'No complaints yet';
+                    const detailsText = patient.detailsText || 'No details yet';
+                    const trimmedDetails = detailsText.length > 120 ? detailsText.slice(0, 117) + '...' : detailsText;
                     
                     return `
                         <tr>
                             <td><strong>${patient.id}</strong></td>
                             <td><span class="status-badge ${statusClass}">${statusBadge}</span></td>
                             <td>
-                                <span class="data-badge ${patient.hasComplaints ? 'has-data' : 'no-data'}">Complaints: ${patient.hasComplaints ? '✓' : '✗'}</span>
-                                <span class="data-badge ${patient.hasDetails ? 'has-data' : 'no-data'}">Details: ${patient.hasDetails ? '✓' : '✗'}</span>
+                                <div><strong>Complaints:</strong> ${complaintsText}</div>
+                                <div style="margin-top: 8px;"><strong>Details:</strong> ${trimmedDetails}</div>
                             </td>
                             <td>
                                 <span class="data-badge ${patient.hasPPI ? 'has-data' : 'no-data'}">PPI: ${patient.hasPPI ? '✓' : '✗'}</span>

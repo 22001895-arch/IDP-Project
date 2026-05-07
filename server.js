@@ -331,8 +331,15 @@ app.get('/api/status', (req, res) => {
 app.get('/api/waiting-room', (req, res) => {
     const waitingRoomList = [];
     for (const [id, data] of Object.entries(waitingRoom)) {
+        const complaints = data.complaints || [];
+        const details = data.details || {};
+
         waitingRoomList.push({
             id,
+            complaints,
+            details,
+            complaintsText: Array.isArray(complaints) ? complaints.join(', ') : String(complaints),
+            detailsText: typeof details === 'object' ? JSON.stringify(details) : String(details),
             hasComplaints: !!data.complaints,
             hasDetails: !!data.details,
             hasPPI: !!data.ppi,
