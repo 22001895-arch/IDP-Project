@@ -1,7 +1,7 @@
-﻿// backend/triageRules.js
+// backend/triageRules.js
 
 // ============================================================
-// ≡ƒÅ┤ LEGACY: Hard-rule engine (kept for backward compat)
+// 🏥 LEGACY: Hard-rule engine (kept for backward compat)
 // COMPLAINT_RULES will be populated in a future iteration.
 // ============================================================
 const COMPLAINT_RULES = {
@@ -20,145 +20,120 @@ const checkHardRules = (selectedComplaints, history) => {
 
 
 // ============================================================
-// ≡ƒÜ¿ RED FLAG DETECTION ENGINE
-// Rule structure per entry:
-//   { id: "QuestionID", trigger: (val) => boolean, priority: "Critical"|"Urgent" }
+// 🚨 RED FLAG COMBINATION RULES
 //
-// Message is generated dynamically as: "[QuestionID]: <answer>"
-// so the doctor can see exactly what was answered.
+// Rules are checked globally against the full answers map,
+// regardless of which chief complaint was selected.
+//
+// Each rule has:
+//   id         – unique rule identifier
+//   label      – human-readable description
+//   priority   – "Critical" | "Urgent"
+//   match(d)   – function that receives the flat {QuestionID: Answer}
+//                map and returns true if the combination fires
+//
+// Combination logic follows the spreadsheet notation:
+//   -->              required condition (must be true)
+//   (+)              AND condition (all must be true)
+//   (+) at least one OR  condition (at least one must be true)
 // ============================================================
-const RED_FLAG_RULES = {
+const RED_FLAG_COMBINATIONS = [
 
-  "Fever": [
-    // Shortness of breath present
-    {
-      id: "resp_001",
-      trigger: (val) => val === "Yes",
-      priority: "Critical",
-    },
-    // Confusion / altered mental status
-    {
-      id: "neuro_003",
-      trigger: (val) => val === "Yes",
-      priority: "Critical",
-    },
-    // Neck stiffness / meningism signs
-    {
-      id: "neuro_004",
-      trigger: (val) => val === "Yes",
-      priority: "Critical",
-    },
-  ],
+  // ── Rule 1 ─────────────────────────────────────────────────
+  // prom_cardpain = Yes
+  // (+) pain_01   = Central / Left side of chest
+  // (+) pain_03   = Yes  (pain present now)
+  {
+    id: "combo_cardiac_central_now",
+    label: "Cardiac chest pain – central/left location with current pain",
+    priority: "Critical",
+    match: (d) =>
+      d["prom_cardpain"] === "Yes" &&
+      (d["pain_01"] === "Central" || d["pain_01"] === "Left side of chest" || d["pain_01"] === "Central / Left side of chest") &&
+      d["pain_03"] === "Yes",
+  },
 
-  "Chest pain": [
-    // Crushing / heaviness character
-    {
-      id: "chest_001",
-      trigger: (val) => val === "Yes",
-      priority: "Critical",
-    },
-    // Pain score > 5 (numeric slider scale)
-    {
-      id: "chest_009",
-      trigger: (val) => parseInt(val, 10) > 5,
-      priority: "Urgent",
-    },
-    // Pain score > 5 (alternate key used by some frontend versions)
-    {
-      id: "chest_009p",
-      trigger: (val) => parseInt(val, 10) > 5,
-      priority: "Urgent",
-    },
-    // Shortness of breath concurrent with chest pain
-    {
-      id: "resp_001",
-      trigger: (val) => val === "Yes",
-      priority: "Critical",
-    },
-    // Radiation / associated symptom flag
-    {
-      id: "chest_026",
-      trigger: (val) => val === "Yes",
-      priority: "Critical",
-    },
-    // Neurological symptom concurrent with chest pain
-    {
-      id: "neuro_005",
-      trigger: (val) => val === "Yes",
-      priority: "Critical",
-    },
-  ],
+  // ── Rule 2 ─────────────────────────────────────────────────
+  // prom_cardpain = Yes
+  // (+) pain_01   = Central / Left side of chest
+  {
+    id: "combo_cardiac_central_location",
+    label: "Cardiac chest pain – central/left location",
+    priority: "Critical",
+    match: (d) =>
+      d["prom_cardpain"] === "Yes" &&
+      (d["pain_01"] === "Central" || d["pain_01"] === "Left side of chest" || d["pain_01"] === "Central / Left side of chest"),
+  },
 
-  "Stomach/Abdominal pain": [
-    // GI bleeding ΓÇö fresh blood or coffee-ground appearance
-    {
-      id: "gi_015",
-      trigger: (val) => val === "Fresh blood" || val === "Dark like coffee grounds",
-      priority: "Critical",
-    },
-    // Abdominal rigidity / guarding
-    {
-      id: "gi_033",
-      trigger: (val) => val === "Yes",
-      priority: "Critical",
-    },
-    // Rebound tenderness
-    {
-      id: "gi_034",
-      trigger: (val) => val === "Yes",
-      priority: "Urgent",
-    },
-  ],
+  // ── Rule 3 ─────────────────────────────────────────────────
+  // prom_cardpain = Yes
+  // (+) at least one of:
+  //       card_pain03B = Yes  (radiation to jaw)
+  //       card_pain04B = Yes  (radiation to neck)
+  //       card_pain05B = Yes  (radiation to arm)
+  {
+    id: "combo_cardiac_radiation",
+    label: "Cardiac chest pain with radiation (jaw / neck / arm)",
+    priority: "Critical",
+    match: (d) =>
+      d["prom_cardpain"] === "Yes" &&
+      (
+        d["card_pain03B"] === "Yes" ||
+        d["card_pain04B"] === "Yes" ||
+        d["card_pain05B"] === "Yes"
+      ),
+  },
 
-  "Shortness of breath": [],
-  "Headache": [],
-  "Dizziness": [],
-  "Eye pain or redness": [],
-  "Nausea/Vomiting": [],
-  "Cough/Sore throat": [],
-  "Diarrhoea": [],
-  "Back pain": [],
-  "Fainting/Blackout": [],
-  "Limb pain (arm/leg pain)": [],
-  "Feeling generally unwell": [],
-  "Skin rashes": [],
-  "Problem with passing urine": [],
+  // ── Rule 4 ─────────────────────────────────────────────────
+  // prom_cardpain = Yes
+  // (+) prom_sob  = Yes
+  {
+    id: "combo_cardiac_with_sob",
+    label: "Cardiac chest pain with shortness of breath",
+    priority: "Critical",
+    match: (d) =>
+      d["prom_cardpain"] === "Yes" &&
+      d["prom_sob"] === "Yes",
+  },
 
-};
+  // ── Rule 5 ─────────────────────────────────────────────────
+  // prom_sob    = Yes
+  // (+) resp_sob09 = Yes  (wheeze)
+  {
+    id: "combo_sob_wheeze",
+    label: "Shortness of breath with wheeze",
+    priority: "Urgent",
+    match: (d) =>
+      d["prom_sob"] === "Yes" &&
+      d["resp_sob09"] === "Yes",
+  },
+
+];
 
 
 // ============================================================
-// ≡ƒöì DETECTION FUNCTION
+// 🔍 DETECTION FUNCTION
 // Inputs:
-//   complaints ΓÇö string[] (e.g. ["Fever", "Chest Pain"])
-//   details    ΓÇö flat object map of { QuestionID: Answer }
+//   complaints – string[] (e.g. ["Fever", "Chest Pain"])  — kept
+//                for API compatibility but no longer used to
+//                filter which rules run.
+//   details    – flat object map of { QuestionID: Answer }
 //
 // Returns: array of detected flag objects, or [] if none.
 // ============================================================
 const detectRedFlags = (complaints, details) => {
   const detectedFlags = [];
 
-  if (!complaints || !details) return detectedFlags;
+  if (!details) return detectedFlags;
 
-  for (const complaint of complaints) {
-    const rules = RED_FLAG_RULES[complaint];
-    if (!rules) continue; // No rules defined for this complaint yet
-
-    for (const rule of rules) {
-      const answer = details[rule.id];
-
-      // Skip if this question was not answered (not present in payload)
-      if (answer === undefined || answer === null || answer === "") continue;
-
-      if (rule.trigger(answer)) {
-        detectedFlags.push({
-          complaint,
-          questionId: rule.id,
-          answer:     String(answer),
-          msg:        `[${rule.id}]: ${answer}`,
-          priority:   rule.priority,
-        });
-      }
+  for (const rule of RED_FLAG_COMBINATIONS) {
+    if (rule.match(details)) {
+      detectedFlags.push({
+        ruleId:   rule.id,
+        label:    rule.label,
+        priority: rule.priority,
+        msg:      `[${rule.id}] ${rule.label}`,
+      });
     }
   }
 
