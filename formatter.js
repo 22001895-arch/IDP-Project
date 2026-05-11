@@ -28,54 +28,26 @@ function formatClinicalHistory(complaints, details) {
 
     let report = "";
 
-    // 1. HEADER: Presenting Complaint
+    // 1. HEADER: Primary Complaint
     const mainComplaints = Array.isArray(complaints) ? complaints.join(", ") : (complaints || "Unspecified");
-    report += `Presenting complaint: ${mainComplaints}\n\n`;
+    report += `Presenting Complaint: ${mainComplaints}\n`;
+    report += `-------------------------------------------\n`;
 
-    // 2. BODY: Associated Symptoms & Details
-    // We group by "Sections" for the Doctor's convenience
-    report += `Clinical History:\n`;
+    // 2. THE LOOP: Display EVERY single key in the details object
+    Object.entries(details).forEach(([id, val]) => {
+        // Skip only the internal Database ID if it exists
+        if (id.toLowerCase() === 'id') return;
 
-    // Filter out "No", "None", and Technical logic IDs
-    const entryItems = Object.entries(details).filter(([id, val]) => {
-        const skipIds = ['id', 'age', 'gender', 'confirm_'];
-        const isTechnical = skipIds.some(skip => id.includes(skip));
-        const isNegative = (val === "No" || val === "None of these" || val === "Proceed");
-        return !isTechnical && !isNegative;
-    });
+        // Get translation from labelMap, or fallback to a "Prettified" ID
+        const label = labelMap[id] || id
+            .replace(/_/g, ' ')
+            .replace(/\b\w/g, l => l.toUpperCase());
 
-    if (entryItems.length === 0) {
-        report += `- No significant positive symptoms reported.\n`;
-    } else {
-        entryItems.forEach(([id, val]) => {
-            // Only show items that are NOT in the "Medical History" keys (we handle those below)
-            const historyKeys = ["prompt_como01", "med_gen01", "med_gen02", "como_10", "prompt_como02"];
-            if (!historyKeys.includes(id)) {
-                const label = labelMap[id] || id; // Use map, fallback to ID if missing
-                const cleanVal = Array.isArray(val) ? val.join(", ") : val;
-                report += `- ${label}: ${cleanVal}\n`;
-            }
-        });
-    }
+        // Handle Array or String values
+        const cleanVal = Array.isArray(val) ? val.join(", ") : val;
 
-    // 3. FOOTER: Past Medical History, Meds, Allergies
-    report += `\nPast Medical & Social History:\n`;
-    const histSection = [
-        { key: "prompt_como01", label: "Medical History" },
-        { key: "prompt_como02", label: "Medical Devices" },
-        { key: "como_10", label: "Recent Surgery" },
-        { key: "med_gen01", label: "Medications" },
-        { key: "med_gen02", label: "Allergies" }
-    ];
-
-    histSection.forEach(item => {
-        const val = details[item.key];
-        if (val && val !== "No" && val !== "None of these") {
-            const cleanVal = Array.isArray(val) ? val.join(", ") : val;
-            report += `- ${item.label}: ${cleanVal}\n`;
-        } else {
-            report += `- ${item.label}: None reported\n`;
-        }
+        // Append to report - NO FILTERS, NO HIDING
+        report += `${label}: ${cleanVal}\n`;
     });
 
     return report;
