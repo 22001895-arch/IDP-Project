@@ -7,6 +7,7 @@ const { AzureOpenAI } = require("openai");
 const os = require('os');
 const path = require('path');
 const bcrypt = require('bcrypt');
+const { formatClinicalHistory } = require('./formatter.js');
 
 // Import your Hard Rules & Red Flag Detection Engine
 const { checkHardRules, detectRedFlags } = require('./triageRules.js');
@@ -399,13 +400,33 @@ app.post('/api/patient/:patientId/override-redflag', verifyApiKey, async (req, r
 });
 
 // ==========================================
-// 📤 ROUTE 2: GIVE JSON (To your index.html)
+// 📤 ROUTE: API FOR DOCTOR DASHBOARD (Remote Access)
 // ==========================================
 app.get('/api/view', async (req, res) => {
     try {
+        // 1. Get raw data from your view
         const result = await pool.query(`SELECT * FROM v_patient_queue`);
-        res.json(result.rows);
+        
+        // 2. Format the data ON-THE-FLY before sending it to the other laptop
+        const formattedRows = result.rows.map(row => {
+            let complaints = row.complaints;
+            let details = row.details;
+
+            // Ensure data is in Object format (Postgres JSONB is usually already an object)
+            try { if (typeof complaints === 'string') complaints = JSON.parse(complaints); } catch(e){}
+            try { if (typeof details === 'string') details = JSON.parse(details); } catch(e){}
+
+            return {
+                ...row, // Send all original database columns (raw IDs, timestamps, etc.)
+                // Add the NEW "Pretty" version for the Doctor to display
+                clinical_history_formatted: formatClinicalHistory(complaints, details)
+            };
+        });
+
+        // 3. Send the enhanced JSON to the requesting dashboard
+        res.json(formattedRows);
     } catch (err) {
+        console.error("❌ Error serving dashboard data:", err.message);
         res.status(500).json({ error: err.message });
     }
 });
