@@ -6,6 +6,7 @@ const { Pool } = require('pg');
 const { AzureOpenAI } = require("openai"); 
 const os = require('os');
 const path = require('path');
+const bcrypt = require('bcrypt');
 
 // Import your Hard Rules & Red Flag Detection Engine
 const { checkHardRules, detectRedFlags } = require('./triageRules.js');
@@ -300,11 +301,109 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
 });
 
 // ==========================================
+// 🔐 ROUTE: DOCTOR LOGIN
+// ==========================================
+app.post('/api/auth/login', async (req, res) => {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+        return res.status(400).json({ error: "Email and password are required" });
+    }
+
+    try {
+        const result = await pool.query(
+            `SELECT * FROM doctors WHERE email = $1 AND is_active = TRUE`,
+            [email]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(401).json({ error: "Invalid email or password" });
+        }
+
+        const doctor = result.rows[0];
+        const passwordMatch = await bcrypt.compare(password, doctor.password_hash);
+
+        if (!passwordMatch) {
+            return res.status(401).json({ error: "Invalid email or password" });
+        }
+
+        console.log(`✅ Doctor logged in: ${doctor.name} (${doctor.staff_id})`);
+
+        res.json({
+            success: true,
+            doctor: {
+                id: doctor.id,
+                staff_id: doctor.staff_id,
+                name: doctor.name,
+                department: doctor.department
+            }
+        });
+    } catch (err) {
+        console.error("❌ Login error:", err.message);
+        res.status(500).json({ error: "Server error during login" });
+    }
+});
+
+// ==========================================
+// 🩺 ROUTE: START CONSULTATION
+// ==========================================
+app.post('/api/patient/:patientId/start-consultation', verifyApiKey, async (req, res) => {
+    const { patientId } = req.params;
+    const { doctorId } = req.body;
+
+    if (!doctorId) {
+        return res.status(400).json({ error: "doctorId is required" });
+    }
+
+    try {
+        await pool.query(
+            `UPDATE patients
+             SET seen_by_doctor_id = $1, consultation_started_at = NOW()
+             WHERE id = $2`,
+            [doctorId, patientId]
+        );
+        console.log(`🩺 Doctor ${doctorId} started consultation for patient ${patientId}`);
+        res.json({ success: true });
+    } catch (err) {
+        console.error("❌ Start consultation error:", err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ==========================================
+// 🚩 ROUTE: OVERRIDE RED FLAG
+// ==========================================
+app.post('/api/patient/:patientId/override-redflag', verifyApiKey, async (req, res) => {
+    const { patientId } = req.params;
+    const { doctorId } = req.body;
+
+    if (!doctorId) {
+        return res.status(400).json({ error: "doctorId is required" });
+    }
+
+    try {
+        await pool.query(
+            `UPDATE patients
+             SET redflag_override = TRUE,
+                 redflag_overridden_by_doctor_id = $1,
+                 redflag_overridden_at = NOW()
+             WHERE id = $2`,
+            [doctorId, patientId]
+        );
+        console.log(`🚩 Doctor ${doctorId} overrode red flag for patient ${patientId}`);
+        res.json({ success: true });
+    } catch (err) {
+        console.error("❌ Override red flag error:", err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ==========================================
 // 📤 ROUTE 2: GIVE JSON (To your index.html)
 // ==========================================
 app.get('/api/view', async (req, res) => {
     try {
-        const result = await pool.query(`SELECT * FROM patients ORDER BY created_at DESC`);
+        const result = await pool.query(`SELECT * FROM v_patient_queue`);
         res.json(result.rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
