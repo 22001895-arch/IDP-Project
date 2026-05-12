@@ -3,7 +3,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
-const { AzureOpenAI } = require("openai"); 
+const { AzureOpenAI } = require("openai");
 const os = require('os');
 const path = require('path');
 const bcrypt = require('bcrypt');
@@ -29,7 +29,7 @@ const verifyApiKey = (req, res, next) => {
         console.log(`🛑 SECURITY ALERT: Blocked unauthorized POST request from an unknown source!`);
         return res.status(401).json({ error: "Unauthorized: Invalid or missing API Key" });
     }
-    
+
     // If the key matches, open the door and run the route!
     next();
 };
@@ -40,8 +40,8 @@ const verifyApiKey = (req, res, next) => {
 const aiClient = new AzureOpenAI({
     endpoint: process.env.AZURE_OPENAI_ENDPOINT,
     apiKey: process.env.AZURE_OPENAI_API_KEY,
-    apiVersion: "2024-02-01", 
-    deployment: process.env.DEPLOYMENT_NAME 
+    apiVersion: "2024-02-01",
+    deployment: process.env.DEPLOYMENT_NAME
 });
 
 // --- DATABASE SETUP (PostgreSQL) ---
@@ -65,6 +65,7 @@ const initializeDatabase = async () => {
             respiratory_rate TEXT,
             hrv TEXT,
             heart_rate TEXT, /* 👈 CHANGED */
+            duration_seconds INTEGER, /* 👈 ADDED HERE */
             redflag TEXT,
             ai_summary TEXT,
             triage_zone TEXT,
@@ -111,6 +112,7 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
     const respRate = data.respiratory_rate || data.rr || null;
     const heartRate = data.heart_rate || data.hr || null;
     const hrv = data.hrv || data.cv || null;
+    const durationSeconds = data.duration_seconds || null; // 👈 ADDED HERE
     const complaintsStr = data.complaints ? (typeof data.complaints === 'string' ? data.complaints : JSON.stringify(data.complaints)) : null;
     const detailsStr = data.details ? (typeof data.details === 'string' ? data.details : JSON.stringify(data.details)) : null;
     const finalNotesStr = data.final_notes_raw || null;
@@ -119,13 +121,14 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
 
     try {
         // 🚀 THE UPSERT: Merge History and Vitals directly in the database
+        // 👈 ADDED duration_seconds to columns, VALUES ($9), and ON CONFLICT UPDATE
         const upsertSql = `
             INSERT INTO patients (
                 id, complaints, details, final_notes_raw, 
-                ppi, respiratory_rate, hrv, heart_rate,
+                ppi, respiratory_rate, hrv, heart_rate, duration_seconds,
                 redflag, ai_summary, triage_zone, final_note_summarized
             ) VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, 'PENDING', 'PENDING', 'PENDING', 'PENDING'
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, 'PENDING', 'PENDING', 'PENDING', 'PENDING'
             ) ON CONFLICT (id) DO UPDATE SET
                 complaints = COALESCE(EXCLUDED.complaints, patients.complaints),
                 details = COALESCE(EXCLUDED.details, patients.details),
@@ -133,11 +136,12 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
                 ppi = COALESCE(EXCLUDED.ppi, patients.ppi),
                 respiratory_rate = COALESCE(EXCLUDED.respiratory_rate, patients.respiratory_rate),
                 hrv = COALESCE(EXCLUDED.hrv, patients.hrv),
-                heart_rate = COALESCE(EXCLUDED.heart_rate, patients.heart_rate)
+                heart_rate = COALESCE(EXCLUDED.heart_rate, patients.heart_rate),
+                duration_seconds = COALESCE(EXCLUDED.duration_seconds, patients.duration_seconds)
             RETURNING *;
         `;
-        const upsertValues = [id, complaintsStr, detailsStr, finalNotesStr, ppi, respRate, hrv, heartRate];
-        
+        const upsertValues = [id, complaintsStr, detailsStr, finalNotesStr, ppi, respRate, hrv, heartRate, durationSeconds]; // 👈 ADDED HERE
+
         const { rows } = await pool.query(upsertSql, upsertValues);
         patientData = rows[0];
 
@@ -161,7 +165,7 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
         console.log(`⏳ Patient ${id} is in the Waiting Room. Waiting for History app...`);
         return res.json({ success: true, status: "WAITING_FOR_HISTORY" });
     }
-    
+
     if (!hasVitals) {
         console.log(`⏳ Patient ${id} is in the Waiting Room. Waiting for rPPG Vitals...`);
         return res.json({ success: true, status: "WAITING_FOR_VITALS" });
@@ -188,7 +192,7 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
     if (detectedFlags.length > 0) {
         console.log(`🚨 ${detectedFlags.length} Red Flag(s) detected for Patient ${id}:`);
         detectedFlags.forEach(f => console.log(`   [${f.priority}] ${f.msg}`));
-        
+
         // 👈 ADDED: Include triggered rule IDs in details JSON
         const triggeredRuleIds = detectedFlags.map(f => f.questionId);
         patientData.details.triggeredRedFlagRuleIds = triggeredRuleIds;
@@ -225,13 +229,13 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
             const result = await aiClient.chat.completions.create({
                 messages: [{ role: "system", content: prompt }],
                 model: process.env.DEPLOYMENT_NAME,
-                response_format: { type: "json_object" } 
+                response_format: { type: "json_object" }
             });
-            
+
             finalTriage = JSON.parse(result.choices[0].message.content);
             console.log("Step 4: AI Result Generated ->", finalTriage.zone);
         }
-        
+
         if (patientData.final_notes_raw && patientData.final_notes_raw.trim() !== "") {
             console.log("XTRA STEP: Summarizing Final Notes separately...");
             const notesPrompt = `
@@ -239,7 +243,7 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
                 "${patientData.final_notes_raw}"
                 Return ONLY JSON: {"summary": "..."}
             `;
-            
+
             const notesResult = await aiClient.chat.completions.create({
                 messages: [{ role: "system", content: notesPrompt }],
                 model: process.env.DEPLOYMENT_NAME,
@@ -251,12 +255,12 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
         }
 
         console.log("Step 5: Writing to database...");
-        
+
         // 👈 CHANGED: SQL Query (Now UPDATE instead of INSERT because Upsert created the row)
         const sql = `UPDATE patients SET 
             redflag = $1, ai_summary = $2, triage_zone = $3, final_note_summarized = $4, details = $5
             WHERE id = $6`;
-        
+
         // 👈 CHANGED: Values array
         const values = [
             redFlagStatus,
@@ -268,7 +272,7 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
         ];
 
         await pool.query(sql, values);
-        
+
         console.log("Step 6: Saved to DB successfully!");
 
         res.json({ success: true, triage: finalTriage });
@@ -276,16 +280,16 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
     } catch (error) {
         console.error("❌ Error Details:", error.message);
 
-        const fallbackResponse = { 
-            zone: "PENDING", 
-            summary: error.message.includes("429") ? "Quota hit. Manual triage required." : "System Error." 
+        const fallbackResponse = {
+            zone: "PENDING",
+            summary: error.message.includes("429") ? "Quota hit. Manual triage required." : "System Error."
         };
 
         // 👈 CHANGED: Fallback SQL Query (Now UPDATE instead of INSERT)
         const fallbackSql = `UPDATE patients SET 
             redflag = $1, ai_summary = $2, triage_zone = $3, final_note_summarized = $4
             WHERE id = $5`;
-            
+
         // 👈 CHANGED: Fallback Values array
         const fallbackValues = [
             "Unknown", fallbackResponse.summary, fallbackResponse.zone, "Error generating notes", id
@@ -406,15 +410,15 @@ app.get('/api/view', async (req, res) => {
     try {
         // 1. Get raw data from your view
         const result = await pool.query(`SELECT * FROM v_patient_queue`);
-        
+
         // 2. Format the data ON-THE-FLY before sending it to the other laptop
         const formattedRows = result.rows.map(row => {
             let complaints = row.complaints;
             let details = row.details;
 
             // Ensure data is in Object format (Postgres JSONB is usually already an object)
-            try { if (typeof complaints === 'string') complaints = JSON.parse(complaints); } catch(e){}
-            try { if (typeof details === 'string') details = JSON.parse(details); } catch(e){}
+            try { if (typeof complaints === 'string') complaints = JSON.parse(complaints); } catch (e) { }
+            try { if (typeof details === 'string') details = JSON.parse(details); } catch (e) { }
 
             return {
                 ...row, // Send all original database columns (raw IDs, timestamps, etc.)
@@ -458,12 +462,12 @@ app.get('/api/status', async (req, res) => {
     try {
         const { rows } = await pool.query(`SELECT id FROM patients WHERE triage_zone = 'PENDING'`);
         waitingPatients = rows.map(r => r.id);
-    } catch(e) {}
+    } catch (e) { }
 
     res.json({
         serverStatus: "Online 🟢",
         databaseStatus: "Connected (PostgreSQL) 🗄️",
-        aiConnection: "Ready (Azure) 🤖", 
+        aiConnection: "Ready (Azure) 🤖",
         ipAddress: localIp,
         uptime: `${hours}h ${minutes}m ${seconds}s`,
         memoryUsed: `${memoryUsedMB} MB`,
@@ -479,12 +483,12 @@ app.get('/api/waiting-room', async (req, res) => {
     try {
         const { rows } = await pool.query(`SELECT * FROM patients WHERE triage_zone = 'PENDING' ORDER BY created_at DESC`);
         const waitingRoomList = [];
-        
+
         for (const data of rows) {
             let complaints = [];
             let details = {};
-            try { complaints = data.complaints ? JSON.parse(data.complaints) : []; } catch(e){}
-            try { details = data.details ? JSON.parse(data.details) : {}; } catch(e){}
+            try { complaints = data.complaints ? JSON.parse(data.complaints) : []; } catch (e) { }
+            try { details = data.details ? JSON.parse(data.details) : {}; } catch (e) { }
 
             waitingRoomList.push({
                 id: data.id,
@@ -498,10 +502,10 @@ app.get('/api/waiting-room', async (req, res) => {
                 hasRespiratoryRate: !!data.respiratory_rate,
                 hasHRV: !!data.hrv,
                 hasHeartRate: !!data.heart_rate,
-                status: (data.complaints && data.details && data.ppi && data.respiratory_rate) 
-                    ? "Complete - Ready for Triage" 
-                    : data.complaints && data.details 
-                        ? "Waiting for Vitals (rPPG)" 
+                status: (data.complaints && data.details && data.ppi && data.respiratory_rate)
+                    ? "Complete - Ready for Triage"
+                    : data.complaints && data.details
+                        ? "Waiting for Vitals (rPPG)"
                         : "Waiting for History"
             });
         }
@@ -516,10 +520,15 @@ app.get('/api/waiting-room', async (req, res) => {
 // ==========================================
 app.get('/api/fix-db', async (req, res) => {
     try {
-        await pool.query(`ALTER TABLE patients RENAME COLUMN spo2 TO heart_rate;`);
-        res.send("✅ Database column successfully renamed from spo2 to heart_rate!");
+        // Keep previous fix just in case it wasn't run
+        await pool.query(`ALTER TABLE patients RENAME COLUMN spo2 TO heart_rate;`).catch(() => console.log("spo2 already renamed"));
+
+        // 👈 ADDED HERE: Add duration_seconds column safely to existing table
+        await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS duration_seconds INTEGER;`);
+
+        res.send("✅ Database columns successfully updated (added duration_seconds)!");
     } catch (err) {
-        res.status(500).send(`❌ Error (it might already be fixed!): ${err.message}`);
+        res.status(500).send(`❌ Error: ${err.message}`);
     }
 });
 
