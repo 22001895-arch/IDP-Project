@@ -1,0 +1,382 @@
+id,label
+prom_fever,Have you had a fever?
+confirm_fever,You have selected 'Fever' as one of your symptoms. We would like to ask a few questions about this. Tap 'Remove' if this is not correct.
+fever_01,When did your fever start?
+fever_02,How many days have you had the fever?
+fever_03,Are you still feeling feverish today?
+fever_04,Have you measured your temperature at home?
+fever_041,What was the highest reading?
+fever_05,Have you been admitted to hospital within the last 1 month?
+fever_06,Have you been in contact with anyone who is unwell within last 2 weeks?
+fever_07,Have you travelled overseas in the last 1 month?
+fever_08,"Have you recently been hiking, jungle trekking, or had contact with rivers, floodwater, or muddy water? (within the last 1 month)"
+prom_sob,Do you have shortness of breath?
+confirm_sob,You have selected 'Shortness of breath' as one of your symptoms. We would like to ask a few questions about this. Tap 'Remove' if this is not correct.
+resp_sob01,Did the shortness of breath start suddenly or gradually?
+resp_sob02,How many days have you been having shortness of breath?
+resp_sob03,Do you feel short of breath at rest or when you are active?
+resp_sob04,Has it limited your ability to walk or do usual activities?
+resp_sob05,Do you feel breathless when lying flat?
+resp_sob06,Have you been waking up suddenly at night because of shortness of breath and needing to sit up?
+resp_sob07,"Is the shortness of breath triggered by dust, smoke, or cold air?"
+resp_sob08,Does the pain get worse when you take a deep breath or cough?
+resp_sob09,Do you hear a wheezing sound when breathing?
+prom_cough,Do you have a cough?
+confirm_cough,You have selected 'Cough' as one of your symptoms. We would like to ask a few questions about this. Tap 'Remove' if this is not correct.
+resp_cou01,How many days have you been coughing?
+resp_cou02,Are you coughing up phlegm?
+resp_cou021,What colour is the phlegm?
+resp_cou022,"If you usually have phlegm, is the amount more than usual?"
+resp_cou023,"If you usually have phlegm, has it changed in colour?"
+resp_cou03,Have you coughed up blood?
+resp_cou04,Do you have runny nose?
+resp_cou05,Do you have sore throat?
+prom_vomiting,Have you been vomiting?
+git_vom01,Have you been feeling nauseated (like you want to vomit)?
+confirm_vomiting,You have selected 'Vomiting' as one of your symptoms. We would like to ask a few questions about this. Tap 'Remove' if this is not correct.
+git_vom02,What does the vomit look like?
+git_vom03,How many times have you vomited?
+git_vom04,How many days have you been vomiting?
+git_vom05,Are you able to keep down fluids or water?
+prom_diarrhoea,Have you been having loose or watery stools (diarrhoea)?
+confirm_diarrhoea,You have selected 'Loose or watery stools (diarrhoea)' as one of your symptoms. We would like to ask a few questions about this. Tap 'Remove' if this is not correct.
+git_dia01,How many times have you passed loose or watery stools?
+git_dia02,How many days have you been having loose or watery stools (diarrhoea)?
+git_dia03,Did the diarrhoea start after eating outside or suspicious food?
+git_dia021,Did anyone else who ate the same food have similar symptoms?
+prom_abdopain,Do you have stomach or abdominal pain?
+confirm_abdopain,You have selected 'Stomach or abdominal pain' as one of your symptoms. We would like to ask a few questions about this. Tap 'Remove' if this is not correct.
+git_pain01,Does the pain go through to your back?
+git_pain02,Do you feel the pain going up to your chest?
+git_pain03,Do you feel acid or food coming up into your throat?
+git_pain04,Do you feel the pain going to your right shoulder or upper back?
+git_pain05,Does eating make the pain worse?
+git_pain06,Does the pain come after eating oily or fatty food?
+git_pain07,Did the pain start around your belly button and then move to the lower right side of your abdomen?
+git_pain08,Does coughing or moving make the pain worse?
+git_01,Have you been constipated or have difficulty passing stools?
+git_02,When did you last open your bowels?
+git_03,What colour are your stools?
+git_04,Have you noticed blood in your stools?
+git_05,Are you able to pass gas (wind)?
+git_06,Does your abdomen feel bloated or distended?
+git_07,Have your eyes or skin turned yellow?
+git_08,Do you have difficulty swallowing?
+git_09,Do you have pain when swallowing?
+git_10,Do you have difficulty controlling your bowels (accidental leakage)?
+prom_gu,Do you have problems with passing urine?
+confirm_gu,You have selected 'Problems with passing urine' as one of your symptoms. We would like to ask a few questions about this. Tap 'Remove' if this is not correct.
+gu_01,Are you able to pass urine?
+gu_02,Do you feel pain or burning when passing urine?
+gu_021,How many days have you had this problem?
+gu_03,"Compared to your usual, are you passing urine more often, or less amount, or about the same?"
+gu_031,How many days have you experienced this?
+gu_04,Is your urine darker than usual?
+gu_041,How many days have you experienced this?
+gu_05,Do you feel the urge to pass urine but cannot get it out?
+gu_051,How many days have you had this problem?
+gu_06,"Have you noticed blood in your urine or blood coming out of your urine passage? (blot clots, or red/pink coloured urine, or fresh blood)"
+gu_061,How many days have you had this problem?
+gu_07,Do you have pain at your side (flank) or lower back? (like as shown in the picture)
+gu_071,Is the pain constant or does it come in waves?
+gu_072,Does the pain move from your side to your groin?
+gu_08,Have you ever had kidney stones before?
+gu_09,Do you currently have a stent (tube) placed in your kidney or ureter?
+gu_091,When was the stent inserted? (days/weeks/months ago)
+gu_10,"Have you had any recent procedures involving your urine passage (such as a catheter, scope, or surgery) within the past 2 weeks?"
+gu_11,Do you have difficulty controlling your bladder (accidental leakage)?
+gu_cbd01,Does the urine in the bag look cloudy?
+gu_cbd011,How many days have you had this problem?
+gu_cbd02,"Compared to usual, has the amount of urine in your urine bag been more, less, or about the same?"
+gu_cbd021,How many days have you had this problem?
+gu_cbd03,Do you feel that your urine catheter is not draining properly or may be blocked?
+gu_cbd031,How many days have you had this problem?
+gu_cbd04,Is urine leaking around the catheter instead of going into the bag?
+gu_cbd041,How many days have you had this problem?
+gu_tes01,Do you have pain in your testicle or scrotum?
+gu_tes011,Is the pain on one side or both sides?
+gu_tes012,Did the pain start suddenly?
+gu_tes013,When did the symptom start? (days ago)
+gu_tes014,How bad is the pain?
+gu_tes015,Did the symptom start suddenly or gradually?
+gu_tes02,Have you noticed any swelling in your testicle or scrotum?
+gu_tes021,Is the swelling on one side or both sides?
+gu_tes022,Did the swelling come on suddenly or gradually?
+prom_cardpain,Do you or did you have chest pain?
+confirm_cardpain,You have selected 'Chest pain' as one of your symptoms. We would like to ask a few questions about this. Tap 'Remove' if this is not correct.
+card_pain01,What were you doing when the pain started?
+card_pain02A,Does the pain go through to your back?
+card_pain03A,Does the pain go to your jaw?
+card_pain04A,Does the pain go to your neck?
+card_pain05A,Does the pain go to your arms?
+card_pain06A,Does sitting forward make the pain better?
+card_pain07A,Does the pain improve with rest?
+card_pain08A,Does the pain get worse if you exert yourself such as walking or climbing stairs?
+card_pain09A,"Does the pain get worse if you move or twist your body, move your arms, or when you press on your chest?"
+card_pain10A,Do you feel nauseated (like you want to vomit) when you have the chest pain?
+card_pain11A,Do you have sweating when the chest pain occurs?
+card_pain02B,Did the pain go through to your back?
+card_pain03B,Did the pain go to your jaw?
+card_pain04B,Did the pain go to your neck?
+card_pain05B,Did the pain go to your arms?
+card_pain06B,Did sitting forward make the pain better?
+card_pain07B,Did the pain improve with rest?
+card_pain08B,Did the pain get worse if you exert yourself such as walking or climbing stairs?
+card_pain09B,"Did the pain get worse if you move or twist your body, move your arms, or when you press on your chest?"
+card_pain10B,Did you feel nauseated (like you want to vomit) when you had the chest pain?
+card_pain11B,Did you have sweating when the chest pain occurred?
+card_01,Have you noticed any swelling in your feet or ankles?
+card_011,Is the swelling on one side or both sides?
+card_012,Which side is more swollen?
+card_013,Is the swollen leg painful?
+card_014,Does the leg feel warm or look red?
+card_015,"Do you have weakness or inability to move one of your legs, or has your leg been placed in a cast recently?"
+card_016,Have you ever been diagnosed with a blood clot in your leg (deep vein thrombosis) before?
+card_02,Have you been told by a doctor to limit how much fluid or drinks you take?
+card_03,Have you felt your heart beating very fast or beating irregularly?
+prom_headache,Do you have a headache?
+confirm_headache,You have selected 'Headache' as one of your symptoms. We would like to ask a few questions about this. Tap 'Remove' if this is not correct.
+neuro_head01,Where do you feel the headache? (👉 Tap on the area)
+neuro_head02,When did the headache start? (days ago)
+neuro_head03,Did the headache start suddenly or gradually?
+neuro_head04,Is constantly there or does it come and go?
+neuro_head05,How bad is the headache now?
+neuro_head06,Is this your first time having this type of headache?
+neuro_head061,Is this headache different from your previous headaches?
+neuro_head07,"Is it getting better, worse, or staying the same?"
+neuro_head08,Can you describe the headache?
+neuro_head09,Did the headache wake you from sleep?
+neuro_head10,Does coughing or straining make the headache worse?
+neuro_head11,Does changing body position affect the headache?
+neuro_head12,Do bright lights make the headache worse?
+neuro_head13,Do loud noises make the headache worse?
+neuro_head14,Do you get pain in your jaw when chewing?
+neuro_head15,Is your scalp painful to touch?
+neuro_head16,Do you have a history of head injury?
+neuro_head161,When did the injury happen? (days ago)
+neuro_head162,How did the injury happen?
+prom_dizziness,Have you been feeling dizzy or giddy?
+confirm_dizziness,You have selected 'Dizziness' as one of your symptoms. We would like to ask a few questions about this. Tap 'Remove' if this is not correct.
+neuro_dizz01,Which best describes your dizziness?
+neuro_dizz02,When did it start? (days ago)
+neuro_dizz03,Did the dizziness start suddenly or gradually?
+neuro_dizz04,"Is the dizziness getting better, worse, or staying the same?"
+neuro_dizz05,"Is the dizziness present all the time, or does it come and go?"
+neuro_dizz06,Does moving your head (like when turning the head or looking up) trigger the dizziness?
+neuro_dizz07,Do you feel dizzy when you stand up?
+neuro_dizz08,Have you had vertigo before?
+neuro_dizz081,Does this dizziness feel the same like your previous vertigo?
+neuro_dizz09,Have you noticed any problems with your ear or hearing?
+prom_weakness,Have you been feeling weak in your body?
+confirm_weakness,You have selected 'Body weakness' as one of your symptoms. We would like to ask a few questions about this. Tap 'Remove' if this is not correct.
+neuro_weak01,"Do you feel weak generally, or only in certain parts of your body?"
+neuro_weak011,"Have you noticed weakness in your face, arm, or leg?"
+neuro_weak012,Is the weakness on one side of your body?
+neuro_weak02,"Did the weakness start suddenly?"
+neuro_weak03,"When did the weakness start? (days ago)"
+neuro_weak031,"What time did the weakness start? (hour:min)"
+neuro_weak04,"Which parts of your body feel weak? (👉 Tap on the area)"
+neuro_weak05,"Have you noticed any numbness or loss of feeling on one side?"
+neuro_weak051,"Which part of your body feels numb or has reduced feeling? (👉 Tap on the area)"
+neuro_weak06,"Do you have difficulty speaking?"
+neuro_weak07,"Do you have problems walking or keeping your balance?"
+neuro_weak08,"Has one side of your face become droopy or weak?"
+neuro_weak09,"Have you fallen because of the weakness?"
+prom_syncope,Have you fainted or nearly fainted (temporarily lost consciousness)?
+confirm_syncope,You have selected 'Fainted or blackout' as one of your symptoms. We would like to ask a few questions about this. Tap 'Remove' if this is not correct.
+neuro_sync01,When did this happen? (days ago)
+neuro_sync02,"Did you completely lose consciousness, or did you just feel like you were about to faint?"
+neuro_sync021,About how long were you unconscious?
+neuro_sync03,What was your body position just before it happened?
+neuro_sync031,Were you standing for a long time when it happened?
+neuro_sync04,Did it happen suddenly without warning?
+neuro_sync05,Were you in a hot environment when it happened?
+neuro_sync06,Did you feel your heart racing before it happened?
+neuro_sync07,Did you have chest pain before it happened?
+neuro_sync08,Were you breathing rapidly before it happened?
+neuro_sync09,Did it happen after passing urine?
+neuro_sync10,Did it happen during or after passing motion?
+neuro_sync11,Did it happen after coughing or sneezing?
+neuro_sync12,"Did it happen during stress, pain, or emotional distress?"
+neuro_sync13,Did you feel dizzy or lightheaded before it happened?
+neuro_sync14,Did you feel like you wanted to vomit before it happened?
+neuro_sync15,Did you have sweating before it happened?
+neuro_sync16,Did your vision become blurred or dark before it happened?
+neuro_sync17,Did you recover quickly or take time to recover after that?
+neuro_sync18,Did you feel confused after you recovered?
+neuro_sync19,"After you recovered, did you feel weak in any part of your body?"
+neuro_sync20,Did you bite your tongue during the episode?
+neuro_sync21,Did you lose control of urine or bowel motion during the episode?
+neuro_01,Does your neck feel stiff or painful to move?
+neuro_02,Have you felt confused or not thinking clearly?
+neuro_03,Did you have any shaking episodes or fits (seizure)?
+neuro_031,"Have you had one episode of pain, or multiple episodes?"
+neuro_032,How many episodes have you had?
+neuro_033,When was the last episode? (days ago)
+sys_01,Have you lost your appetite?
+sys_02,Have you lost weight recently without trying?
+sys_03,Have you been feeling unusually tired or lacking of energy?
+sys_04,Do you have muscle aches or body aches?
+sys_05,Have you been sweating a lot at night (soaking your clothes and bedsheets)?
+og_01,Is there a chance you might be pregnant?
+og_011,How many weeks pregnant are you?
+og_012,When was your last menstrual period?
+og_013,Have you had any vaginal bleeding or spotting?
+og_0131,When did this start? (days ago)
+og_02,Have you noticed any abnormal vaginal discharge?
+og_03,Are you currently having your menses?
+og_031,Do you usually have pain during your menses?
+og_032,Are you periods heavier than usual?
+prom_bleeding,Have you noticed any bleeding recently?
+confirm_bleeding,You have selected 'Bleeding' as one of your symptoms. We would like to ask a few questions about this. Tap 'Remove' if this is not correct.
+bleed_01,Where is the bleeding coming from?
+bleed_02,How did the bleeding start?
+bleed_03,When did the bleeding start? (days ago)
+bleed_04,Has the bleeding stopped or still ongoing?
+bleed_screen01,Have you vomited blood or dark material?
+bleed_screen02,Have you noticed fresh blood when passing stool?
+bleed_screen03,Have your stools been black in colour?
+bleed_screen04,Are your periods heavier than usual?
+bleed_screen05,Have you noticed blood in your urine?
+bleed_screen06,Have you had any recent injury or bleeding from elsewhere?
+bleed_screen07,Have you had nose or gum bleeding?
+bleed_screen08,"Have you noticed skin bruising recently, even without injury?"
+soc_gen01,Do you smoke or have you smoked cigarettes before?
+soc_gen011,About how many cigarettes per day?
+soc_gen012,When did you stop smoking?
+soc_gen013,For how many years have you smoked?
+soc_gen02,Do you drink alcohol?
+soc_gen021,How often do you usually drink alcohol?
+soc_gen03,Who do you live with?
+soc_gen04,Which of the following best describes you before this illness?
+med_gen01,Are you currently taking any regular medications?
+med_gen011,Are you taking medication for high blood pressure?
+med_gen012,Are you taking medication for diabetes?
+med_gen0121,"In the past few days, have you missed or skipped any of your diabetes medications?"
+med_gen013,"Are you taking blood-thinning medications like warfarin, dabigatran, or apixaban?"
+med_gen014,Are you taking medications aspirin or clopidogrel?
+med_gen015,Are you taking steroid medications like prednisolone or hydrocortisone?
+med_gen02,Do you have any allergies to medications?
+med_gen021,Which medication are you allergic to?
+med_gen022,What reaction did you have?
+med_gen023,Did you need hospital treatment for this reaction?
+med_fever01,Have you taken fever medication such as paracetamol (panadol) since the fever started?
+med_fever02,Have you taken antibiotics in the past 2 weeks?
+med_fever03,Have you received any vaccination in the past 1 month?
+med_01,Have you started any new medications in the last 2 weeks?
+med_02,Did this problem start after taking any medication?
+med_03,Have you been taking painkillers like ibuprofen or diclofenac regularly?
+med_04,Have you received a blood transfusion in the past 1 month?
+med_05,Do you take any herbal or traditional medications?
+med_06,"Have you taken any painkiller medication? (for example panadol, ibuprofen, voltaren, tramadol)"
+med_07,Have you had a tetanus vaccination in the last 5–10 years?
+prompt_como01,Do you have a history of any of the following medical conditions?
+como_081,Are you receiving chemotherapy or cancer treatment? (within the last 1 month)
+como_091,Are you on kidney dialysis treatment?
+como_092,When was your last dialysis session?
+como_10,Have you had any surgery within the last 3 months?
+prompt_como02,Do you have any of the following medical devices in your body?
+prompt_como02_lite,Do you have any of the following medical devices in your body?
+pain_git_01,Where do you feel the pain? (👉 Tap on the area)
+pain_git_02,When did the pain start? (days ago)
+pain_git_03,Are you still having pain right now?
+pain_git_031A,How bad is the pain now?
+pain_git_031B,How bad was the pain now?
+pain_git_04,Did the pain start suddenly or gradually?
+pain_git_05,"Have you had one episode of pain, or multiple episodes?"
+pain_git_051,How many episodes have you had?
+pain_git_052,How long does each episode usually last?
+pain_git_053,How bad was the pain at its worst?
+pain_git_06,Can you describe the pain?
+pain_git_07A,"Is the pain constant, or does it come and go?"
+pain_git_07B,"Was the pain constant, or did it come and go?"
+pain_card_01,Where do you feel the pain? (👉 Tap on the area)
+pain_card_02,When did the pain start? (days ago)
+pain_card_03,Are you still having pain right now?
+pain_card_031A,How bad is the pain now?
+pain_card_031B,How bad was the pain now?
+pain_card_04,Did the pain start suddenly or gradually?
+pain_card_05,"Have you had one episode of pain, or multiple episodes?"
+pain_card_051,How many episodes have you had?
+pain_card_052,How long does each episode usually last?
+pain_card_053,How bad was the pain at its worst?
+pain_card_06,Can you describe the pain?
+pain_card_07A,"Is the pain constant, or does it come and go?"
+pain_card_07B,"Was the pain constant, or did it come and go?"
+prom_injury,Have you had any injury?
+confirm_injury,You have selected 'Injury' as one of your symptoms. We would like to ask a few questions about this. Tap 'Remove' if this is not correct.
+inj_01,Which part of your body was injured? (👉 Tap on the area)
+inj_02,Are you in pain now?
+inj_03,How bad is your pain right now? 
+inj_04,When did the injury happen? (days ago)
+inj_05,How did the injury happen?
+inj_06,Did this injury happen as a result of an assault?
+inj_region01,What does the injury look like at this area?
+inj_region02,Can you stand or walk on it?
+inj_region03,Do you have numbness or tingling in this area?
+inj_region04,"Is there anything in the wound (foreign body like glass, splinter, dirt)?"
+inj_eye00,Do you have eye injury?
+inj_eye01,What caused the eye injury?
+inj_eye02,Did anything like chemicals or cleaning agent get into your eye?
+inj_eye021,Did you rinse your eye with water immediately after it happened?
+inj_eye03,Has your vision become blurred or reduced after the injury?
+inj_eye04,Is there bleeding in the eye or around it?
+prom_skin,"Have you noticed any skin changes such as redness, swelling, or a wound?"
+confirm_skin,You have selected 'Skin problem' as one of your symptoms. We would like to ask a few questions about this. Tap 'Remove' if this is not correct.
+skin_01,What kind of skin changes have you noticed?
+skin_02,Which part of your body has this skin changes or problem? (👉 Tap on the area)
+skin_03,When did this problem start? (days ago)
+prom_eye,Do you have any problems with your eye or vision?
+confirm_eye,You have selected 'Eye problem' as one of your symptoms. We would like to ask a few questions about this. Tap 'Remove' if this is not correct.
+eye_01,What problems are you having with your eye?
+eye_02,Which eye is affected?
+eye_03,When did the problem start? (days ago)
+eye_04,Did it start suddenly or gradually?
+eye_05,Did the problem start after an injury to your eye or face?
+eye_06,Have you completely loss vision in that eye (cannot see anything at all)?
+eye_07,Does it hurt when you move you eyes?
+eye_08,Does your eye look like it is bulging?
+eye_09,Do bright lights make your eyes more uncomfortable?
+eye_10,"When you look at lights, do you see rings or circles around them (halos)? "
+eye_11,Did you symptoms start or get worse in a dark environment?
+eye_12,Do you feel nauseated or have you vomited?
+eye_13,Do you have discharge in or around your affected eye? (watery / sticky / pus)
+eye_14,Are your eyelids stuck together when you wake up in the morning?
+eye_15,Does the affected eye feel itchy or gritty?
+eye_16,"Do you feel like something has entered your eye, or something is stuck in your eye?"
+eye_17,Do you wear contact lenses?
+eye_18,Have you had any recent eye surgery or eye procedure? (Within the last 2 weeks)
+prom_ent,"Do you have any problems with your ear, nose, or throat?"
+confirm_ent,"You have selected 'Ear, Nose or Throat problem' as one of your symptoms. We would like to ask a few questions about this. Tap 'Remove' if this is not correct."
+ent_00,What kind of problem are you having?
+ent_ear01,What problems are you having with your ear?
+ent_ear02,When did the problem start? (days ago)
+ent_ear03,Which ear is affected?
+ent_ear04,"Did the reduced hearing or hearing loss happen suddenly, gradually over time, or comes and goes?"
+ent_ear05,What do you think entered or got stuck in your ear?
+ent_ear06,Was this problem caused by an injury to the ear?
+ent_nose01,What problems are you having with your nose?
+ent_nose02,When did the problem start? (days ago)
+ent_nose03,Which nostril is affected?
+ent_nose04,Did the nosebleed happen spontaneously or after an injury to your nose?
+ent_nose05,"Has the nosebleed stopped, or is it ongoing?"
+ent_nose06,What do you think entered or got stuck in your nose?
+ent_throat01,What problems are you having with your throat?
+ent_throat02,When did the problem start? (days ago)
+ent_throat03,"Did this problem start suddenly, gradually over time, or comes and goes?"
+ent_throat04,What do you think is stuck in your throat?
+ent_throat05,"Can you swallow your saliva normally, or is it difficult and causing you to drool?"
+ent_throat06,"Are you able to swallow liquids better, or solids better?"
+ent_throat07,"Did this problem start after breathing in things like smoke, fumes, or chemicals (for example from a fire or cleaning products)?"
+prom_msk,"Do you have any muscle, back or joint problems?"
+confirm_msk,"You have selected 'Muscle, Back or Joint problem' as one of your symptoms. We would like to ask a few questions about this. Tap 'Remove' if this is not correct."
+msk_01,What problems are you having at this area?
+msk_02,Which area of the body do you have the problem? (👉 Tap on the area)
+msk_03,When did the problem start? (days ago)
+msk_04,Was the problem caused by an injury?
+msk_05,"Did this problem start after lifting something heavy, sudden movement, or physical activity?"
+msk_06,Have you had similar problems before?
+msk_07,Have you been diagnosed with gout before?
+msk_08,Have you been diagnosed with arthritis before?
+msk_09,Are you able to stand or walk since this problem started?
+msk_10,"Have you felt numbness around your buttocks, inner thighs, or private part?"
