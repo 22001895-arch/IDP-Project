@@ -79,7 +79,11 @@ function stripToPhrase(text) {
 // ── Map a question to a short clinical label (for descriptive answers) ─────────
 function getShortLabel(question) {
   const q = question.toLowerCase();
-  if (/when did|when was your last dialysis/.test(q))                  return 'Last dialysis';
+  
+  // Specificity order matters
+  if (/when was your last dialysis/.test(q))                          return 'Last dialysis';
+  if (/when was the stent inserted/.test(q))                         return 'Stent insertion';
+  if (/when did the injury happen|how did the injury happen/.test(q)) return 'Injury details';
   if (/when did|when was/.test(q))                                    return 'Onset';
   if (/start suddenly or gradually/.test(q))                          return 'Onset';
   if (/how many days|how long have you had/.test(q))                  return 'Duration';
@@ -110,7 +114,6 @@ function getShortLabel(question) {
   if (/which of the following best describes you/.test(q))            return 'Functional status';
   if (/what time did/.test(q))                                        return 'Time of onset';
   if (/what was the highest reading/.test(q))                         return 'Highest temperature';
-  if (/when was your last dialysis/.test(q))                          return 'Last dialysis';
   if (/when was the last episode/.test(q))                            return 'Last episode';
   if (/how many weeks pregnant/.test(q))                              return 'Gestational age';
   if (/when was your last menstrual/.test(q))                         return 'Last menstrual period';
@@ -141,24 +144,21 @@ function toClinicalStatement(label, value) {
   }
 
   const strVal = String(value).trim();
-  if (!strVal || strVal === 'Proceed') return null;   // pure navigation value — skip
+  if (!strVal || strVal === 'Proceed' || strVal === 'Selected') return null; // skip navigation keys
 
   const lower = strVal.toLowerCase();
 
-  // Yes → positive statement (clean up to read naturally)
+  // Yes → positive statement
   if (lower === 'yes') {
-    const phrase = stripToPhrase(label)
-      .replace(/(\?|\.$)/g, '')
-      .trim();
+    const phrase = stripToPhrase(label).replace(/(\?|\.$)/g, '').trim();
     return cap(phrase);
   }
 
-  // No → negative statement
+  // No → Checklist-style negative statement
+  // This avoids awkward sentences like "No breathless when lying flat"
   if (lower === 'no') {
-    const phrase = stripToPhrase(label)
-      .replace(/(\?|\.$)/g, '')
-      .trim();
-    return `No ${phrase.charAt(0).toLowerCase()}${phrase.slice(1)}`;
+    const phrase = stripToPhrase(label).replace(/(\?|\.$)/g, '').trim();
+    return `${cap(phrase)}: No`;
   }
 
   // Descriptive value — use short clinical label
