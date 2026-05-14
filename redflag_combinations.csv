@@ -1,0 +1,67 @@
+,Id,Element,Response
+,,,
+-->,prom_cardpain,Prompt chest pain,Yes
+(+),pain_01,Pain location,Central / Left side of chest
+(+),pain_03,Pain now,Yes
+,,,
+,,,
+-->,prom_cardpain,Prompt chest pain,Yes
+(+),pain_01,Pain location,Central / Left side of chest
+,,,
+,,,
+-->,prom_cardpain,Prompt chest pain,Yes
+(+) any,card_pain03B,Past radiation to jaw,Yes
+,card_pain04B,Past radiation to neck,Yes
+,card_pain05B,Past radiation to arm,Yes
+,,,
+,,,
+-->,prom_cardpain,Prompt chest pain,Yes
+(+),prom_sob,Prompt SOB,Yes
+,,,
+,,,
+-->,prom_sob,Prompt SOB,Yes
+(+),resp_sob09,Wheeze,Yes
+,,,
+,,,
+-->,neuro_weak07,Balance,Yes
+,,,
+,,,
+-->,neuro_weak012,Side of weakness,Right side / Left side
+,,,
+,,,
+-->,neuro_weak06,Speech difficulty,Yes
+(+),neuro_weak08,Facial droop,Yes
+,,,
+,,,
+-->,neuro_sync04,Sudden syncope,Yes
+,,,
+,,,
+-->,neuro_sync07,Presyncope chest pain,Yes
+,,,
+,,,
+-->,confirm_headache,Confirm headache,Selected
+OR,prom_headache,Prompt headache,Yes
+(+) any,neuro_02,Confusion,Yes
+,neuro_01,Neck stiffness,Yes
+,,,
+,,,
+-->,neuro_02,Confusion,Yes
+(+),neuro_01,Neck stiffness,Yes
+,,,
+,,,
+-->,confirm_fever,Confirm fever,Selected
+OR,prom_fever,Prompt fever,Yes
+(+) any,git_vom03,Vomiting frequency,≥3
+,git_dia01,Diarrhoea frequency,≥3
+,prom_abdopain,Prompt abdominal pain,Yes
+,confirm_abdopain,Confirm Abdominal pain,Selected
+,bleed_01,Bleeding location,Nosebleed / Mouth or gums
+,,,
+,,,
+-->,eye_05,Eye injury,Yes
+(+) any,eye_07,Pain on eye movement,Yes
+,eye_06,Complete loss of vision,Yes
+,,,
+,,,
+-->,eye_01,Eye pain,Pain / Blurred or loss of vision
+(+),eye_10,Halos,Yes

@@ -108,6 +108,142 @@ const RED_FLAG_COMBINATIONS = [
       d["resp_sob09"] === "Yes",
   },
 
+  // ── Rule 6 ─────────────────────────────────────────────────
+  // neuro_weak07 = Yes  (balance loss)
+  {
+    id: "combo_neuro_balance_loss",
+    label: "Neurological – sudden loss of balance",
+    priority: "Critical",
+    match: (d) =>
+      d["neuro_weak07"] === "Yes",
+  },
+
+  // ── Rule 7 ─────────────────────────────────────────────────
+  // neuro_weak012 = Right side | Left side  (unilateral weakness)
+  {
+    id: "combo_neuro_unilateral_weakness",
+    label: "Neurological – unilateral limb weakness (right or left side)",
+    priority: "Critical",
+    match: (d) =>
+      d["neuro_weak012"] === "Right side" ||
+      d["neuro_weak012"] === "Left side",
+  },
+
+  // ── Rule 8 ─────────────────────────────────────────────────
+  // neuro_weak06 = Yes  (speech difficulty)
+  // (+) neuro_weak08 = Yes  (facial droop)
+  {
+    id: "combo_neuro_speech_facial_droop",
+    label: "Neurological – speech difficulty with facial droop",
+    priority: "Critical",
+    match: (d) =>
+      d["neuro_weak06"] === "Yes" &&
+      d["neuro_weak08"] === "Yes",
+  },
+
+  // ── Rule 9 ─────────────────────────────────────────────────
+  // neuro_sync04 = Yes  (sudden syncope)
+  {
+    id: "combo_neuro_sudden_syncope",
+    label: "Neurological – sudden syncope",
+    priority: "Critical",
+    match: (d) =>
+      d["neuro_sync04"] === "Yes",
+  },
+
+  // ── Rule 10 ────────────────────────────────────────────────
+  // neuro_sync07 = Yes  (chest pain during presyncope)
+  {
+    id: "combo_neuro_presyncope_chest_pain",
+    label: "Neurological – presyncope with chest pain",
+    priority: "Critical",
+    match: (d) =>
+      d["neuro_sync07"] === "Yes",
+  },
+
+  // ── Rule 11 ────────────────────────────────────────────────
+  // confirm_headache = Selected  OR  prom_headache = Yes
+  // (+) at least one of:
+  //       neuro_02 = Yes  (confusion)
+  //       neuro_01 = Yes  (neck stiffness)
+  {
+    id: "combo_headache_confusion_or_neck",
+    label: "Headache with confusion or neck stiffness",
+    priority: "Critical",
+    match: (d) =>
+      (d["confirm_headache"] === "Selected" || d["prom_headache"] === "Yes") &&
+      (d["neuro_02"] === "Yes" || d["neuro_01"] === "Yes"),
+  },
+
+  // ── Rule 12 ────────────────────────────────────────────────
+  // neuro_02 = Yes  (confusion)
+  // (+) neuro_01 = Yes  (neck stiffness)
+  {
+    id: "combo_confusion_neck_stiffness",
+    label: "Confusion with neck stiffness",
+    priority: "Critical",
+    match: (d) =>
+      d["neuro_02"] === "Yes" &&
+      d["neuro_01"] === "Yes",
+  },
+
+  // ── Rule 13 ────────────────────────────────────────────────
+  // confirm_fever = Selected  OR  prom_fever = Yes
+  // (+) at least one of:
+  //       git_vom03  >= 3  (vomiting ≥3 times)
+  //       git_dia01  >= 3  (diarrhoea ≥3 times)
+  //       prom_abdopain     = Yes
+  //       confirm_abdopain  = Selected
+  //       bleed_01   = Nosebleed | Mouth or gums
+  {
+    id: "combo_fever_with_gi_or_bleed",
+    label: "Fever with vomiting/diarrhoea (≥3), abdominal pain, or oral/nasal bleeding",
+    priority: "Urgent",
+    match: (d) => {
+      const hasFever =
+        d["confirm_fever"] === "Selected" || d["prom_fever"] === "Yes";
+      if (!hasFever) return false;
+
+      const vomitCount = parseInt(d["git_vom03"], 10);
+      const diarrCount = parseInt(d["git_dia01"], 10);
+
+      return (
+        (!isNaN(vomitCount) && vomitCount >= 3) ||
+        (!isNaN(diarrCount) && diarrCount >= 3) ||
+        d["prom_abdopain"] === "Yes" ||
+        d["confirm_abdopain"] === "Selected" ||
+        d["bleed_01"] === "Nosebleed" ||
+        d["bleed_01"] === "Mouth or gums"
+      );
+    },
+  },
+
+  // ── Rule 14 ────────────────────────────────────────────────
+  // eye_05 = Yes  (eye injury)
+  // (+) at least one of:
+  //       eye_07 = Yes  (pain on eye movement)
+  //       eye_06 = Yes  (complete loss of vision)
+  {
+    id: "combo_eye_injury_with_pain_or_vision_loss",
+    label: "Eye injury with pain on movement or complete vision loss",
+    priority: "Critical",
+    match: (d) =>
+      d["eye_05"] === "Yes" &&
+      (d["eye_07"] === "Yes" || d["eye_06"] === "Yes"),
+  },
+
+  // ── Rule 15 ────────────────────────────────────────────────
+  // eye_01 = Pain | Blurred or loss of vision
+  // (+) eye_10 = Yes  (halos)
+  {
+    id: "combo_eye_pain_vision_with_halos",
+    label: "Eye pain or blurred/loss of vision with halos",
+    priority: "Urgent",
+    match: (d) =>
+      (d["eye_01"] === "Pain" || d["eye_01"] === "Blurred or loss of vision") &&
+      d["eye_10"] === "Yes",
+  },
+
 ];
 
 
