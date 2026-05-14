@@ -163,3 +163,52 @@ SELECT id, staff_id, name, email, department, is_active FROM doctors;
 UPDATE doctors SET password_hash = '$2b$10$RvzRXYagEWkI.yLlaVyp.u4JwpGIupzBbvLMrabNDDnhzqRo1oQUO' WHERE staff_id = 'DR001';
 UPDATE doctors SET password_hash = '$2b$10$B5bxPxXPcHIKccXcxmAcGeXqGrA3repbfy0GiV9q2lRX8T0RINmqW' WHERE staff_id = 'DR002';
 UPDATE doctors SET password_hash = '$2b$10$0O5yYGBcVrXbEK0BCZyML.20so0cWRda306cLpy2A.FSR7W/Gt24C' WHERE staff_id = 'DR003';
+
+
+-- ============================================================
+-- STEP 7: PERSISTENT CONSULTATION STATUS (Run this migration!)
+--
+--   Adds two new columns so that 'In Progress' and 'Completed'
+--   statuses survive page refreshes, new tabs, and different
+--   devices. Previously these were stored only in sessionStorage.
+-- ============================================================
+
+-- 7a. Add consultation_status column (Waiting / In Progress / Completed)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'patients' AND column_name = 'consultation_status'
+    ) THEN
+        ALTER TABLE patients
+            ADD COLUMN consultation_status TEXT NOT NULL DEFAULT 'Waiting'
+            CHECK (consultation_status IN ('Waiting', 'In Progress', 'Completed'));
+    END IF;
+END $$;
+
+-- 7b. Add timestamp for when consultation was marked complete
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'patients' AND column_name = 'consultation_completed_at'
+    ) THEN
+        ALTER TABLE patients
+            ADD COLUMN consultation_completed_at TIMESTAMP;
+    END IF;
+END $$;
+
+-- 7c. Backfill existing rows that already have a doctor assigned
+--     (they were already "In Progress" but never had the column)
+UPDATE patients
+SET consultation_status = 'In Progress'
+WHERE seen_by_doctor_id IS NOT NULL
+  AND consultation_status = 'Waiting';
+
+-- 7d. Verify new columns
+SELECT column_name, data_type, column_default
+FROM information_schema.columns
+WHERE table_name = 'patients'
+  AND column_name IN ('consultation_status', 'consultation_completed_at')
+ORDER BY ordinal_position;
+

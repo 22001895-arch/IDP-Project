@@ -363,7 +363,9 @@ app.post('/api/patient/:patientId/start-consultation', verifyApiKey, async (req,
     try {
         await pool.query(
             `UPDATE patients
-             SET seen_by_doctor_id = $1, consultation_started_at = NOW()
+             SET seen_by_doctor_id = $1,
+                 consultation_started_at = NOW(),
+                 consultation_status = 'In Progress'
              WHERE id = $2`,
             [doctorId, patientId]
         );
@@ -371,6 +373,34 @@ app.post('/api/patient/:patientId/start-consultation', verifyApiKey, async (req,
         res.json({ success: true });
     } catch (err) {
         console.error("❌ Start consultation error:", err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ==========================================
+// ✅ ROUTE: COMPLETE CONSULTATION
+// ==========================================
+app.post('/api/patient/:patientId/complete-consultation', verifyApiKey, async (req, res) => {
+    const { patientId } = req.params;
+    const { doctorId } = req.body;
+
+    if (!doctorId) {
+        return res.status(400).json({ error: "doctorId is required" });
+    }
+
+    try {
+        await pool.query(
+            `UPDATE patients
+             SET consultation_status = 'Completed',
+                 consultation_completed_at = NOW(),
+                 seen_by_doctor_id = COALESCE(seen_by_doctor_id, $1)
+             WHERE id = $2`,
+            [doctorId, patientId]
+        );
+        console.log(`✅ Doctor ${doctorId} completed consultation for patient ${patientId}`);
+        res.json({ success: true });
+    } catch (err) {
+        console.error("❌ Complete consultation error:", err.message);
         res.status(500).json({ error: err.message });
     }
 });
