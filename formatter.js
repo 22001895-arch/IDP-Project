@@ -132,8 +132,114 @@ function cap(str) {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
+// ── Helper to polish English for positive statements ────────────────────────
+function polishPositive(phrase) {
+  let s = phrase.toLowerCase();
+  
+  if (s.startsWith('hear a wheezing')) return 'Hears a wheezing sound when breathing';
+  if (s.includes('measured your temperature') || s.includes('measured temperature')) return 'Measured temperature at home';
+  if (s.startsWith('admitted to hospital')) return 'Admitted to hospital recently';
+  if (s.startsWith('in contact with')) return 'In contact with unwell person(s)';
+  if (s.startsWith('travelled overseas') || s.startsWith('traveled overseas')) return 'Recent overseas travel';
+  if (s.startsWith('recently been hiking')) return 'Recent hiking or contact with rivers/muddy water';
+  if (s.startsWith('taken fever medication')) return 'Has taken fever medication';
+  if (s.startsWith('taken antibiotics')) return 'Has taken antibiotics recently';
+  if (s.startsWith('received any vaccination')) return 'Has received recent vaccination';
+  
+  if (s.startsWith('limited your ability') || s.startsWith('limited ability')) return 'Limitation in usual activities';
+  if (s.startsWith('breathless when lying')) return 'Breathless when lying flat';
+  if (s.startsWith('waking up suddenly')) return 'Sudden waking at night from breathlessness';
+  if (s.startsWith('shortness of breath triggered by')) return 'Triggered by dust, smoke, or cold air';
+  if (s.includes('pain get worse when you take a deep breath')) return 'Pain worsens with deep breath or cough';
+  
+  if (s.startsWith('feeling nauseated')) return 'Experiencing nausea';
+  if (s.includes('abdomen feel bloated')) return 'Abdomen feels bloated or distended';
+  if (s.includes('coughing or moving make the pain worse')) return 'Pain worsens with movement or coughing';
+  
+  if (s.includes('injury to your eye')) return 'Preceding eye or face injury';
+  if (s.includes('completely loss vision') || s.includes('completely lost vision')) return 'Complete loss of vision';
+  if (s.includes('hurt when you move you eyes') || s.includes('hurt when you move your eyes')) return 'Pain with eye movement';
+  if (s.includes('eye look like it is bulging')) return 'Eye appears bulging';
+  if (s.includes('see rings or circles')) return 'Sees halos around lights';
+  if (s.includes('bright lights make your eyes')) return 'Photophobia (sensitivity to bright lights)';
+  if (s.includes('discharge in or around')) return 'Eye discharge present';
+  if (s.includes('symptoms start or get worse in a dark')) return 'Symptoms worsen in the dark';
+  if (s.includes('affected eye feel itchy')) return 'Eye feels itchy or gritty';
+  if (s.includes('eyelids stuck together')) return 'Eyelids stuck together in the morning';
+  if (s.startsWith('wear contact lenses')) return 'Wears contact lenses';
+  if (s.includes('like something has entered your eye')) return 'Foreign body sensation in the eye';
+  if (s.includes('recent eye surgery')) return 'Recent eye surgery or procedure';
+  
+  if (s.startsWith('lost your appetite')) return 'Loss of appetite';
+  if (s.startsWith('lost weight')) return 'Unintentional weight loss';
+  if (s.startsWith('feeling unusually tired')) return 'Unusual fatigue or lack of energy';
+  if (s.startsWith('have muscle aches')) return 'Muscle or body aches present';
+  if (s.startsWith('sweating a lot at night')) return 'Night sweats present';
+  
+  if (s.startsWith('currently taking any regular')) return 'Currently taking regular medications';
+  if (s.startsWith('have any allergies')) return 'Has known drug allergies';
+
+  return cap(phrase);
+}
+
+// ── Helper to polish English for negative statements ────────────────────────
+function polishNegative(phrase) {
+  let s = phrase.toLowerCase();
+  
+  if (s.startsWith('hear a wheezing')) return 'No wheezing sound heard when breathing';
+  if (s.includes('measured your temperature') || s.includes('measured temperature')) return 'Did not measure temperature at home';
+  if (s.startsWith('admitted to hospital')) return 'Not admitted to hospital';
+  if (s.startsWith('in contact with')) return 'No contact with anyone unwell';
+  if (s.startsWith('travelled overseas') || s.startsWith('traveled overseas')) return 'No recent overseas travel';
+  if (s.startsWith('recently been hiking')) return 'No recent hiking or contact with rivers/muddy water';
+  if (s.startsWith('taken fever medication')) return 'No fever medication taken';
+  if (s.startsWith('taken antibiotics')) return 'No antibiotics taken recently';
+  if (s.startsWith('received any vaccination')) return 'No recent vaccinations';
+  
+  if (s.startsWith('limited your ability') || s.startsWith('limited ability')) return 'No limitation in usual activities';
+  if (s.startsWith('breathless when lying')) return 'Not breathless when lying flat';
+  if (s.startsWith('waking up suddenly')) return 'No sudden waking at night from breathlessness';
+  if (s.startsWith('shortness of breath triggered by')) return 'Not triggered by dust, smoke, or cold air';
+  if (s.includes('pain get worse when you take a deep breath')) return 'Pain does not worsen with deep breath or cough';
+  
+  if (s.startsWith('feeling nauseated')) return 'Denies nausea';
+  if (s.includes('abdomen feel bloated')) return 'Abdomen is not bloated or distended';
+  if (s.includes('coughing or moving make the pain worse')) return 'Pain does not worsen with movement or coughing';
+  
+  if (s.includes('injury to your eye')) return 'No preceding eye or face injury';
+  if (s.includes('completely loss vision') || s.includes('completely lost vision')) return 'No complete loss of vision';
+  if (s.includes('hurt when you move you eyes') || s.includes('hurt when you move your eyes')) return 'No pain with eye movement';
+  if (s.includes('eye look like it is bulging')) return 'Eye does not appear bulging';
+  if (s.includes('see rings or circles')) return 'No halos seen around lights';
+  if (s.includes('bright lights make your eyes')) return 'No photophobia (sensitivity to bright lights)';
+  if (s.includes('discharge in or around')) return 'No eye discharge';
+  if (s.includes('symptoms start or get worse in a dark')) return 'Symptoms do not worsen in the dark';
+  if (s.includes('affected eye feel itchy')) return 'Eye does not feel itchy or gritty';
+  if (s.includes('eyelids stuck together')) return 'Eyelids not stuck together in the morning';
+  if (s.startsWith('wear contact lenses')) return 'Does not wear contact lenses';
+  if (s.includes('like something has entered your eye')) return 'No foreign body sensation in the eye';
+  if (s.includes('recent eye surgery')) return 'No recent eye surgery or procedures';
+  
+  if (s.startsWith('lost your appetite')) return 'No loss of appetite';
+  if (s.startsWith('lost weight')) return 'No unintentional weight loss';
+  if (s.startsWith('feeling unusually tired')) return 'No unusual fatigue';
+  if (s.startsWith('have muscle aches')) return 'No muscle or body aches';
+  if (s.startsWith('sweating a lot at night')) return 'No night sweats';
+  
+  if (s.startsWith('currently taking any regular')) return 'Not taking any regular medications';
+  if (s.startsWith('have any allergies')) return 'No known drug allergies';
+
+  // Fallback heuristics:
+  const doesMatch = s.match(/^does (your |the )?(.*?) (feel|get|look|make) (.*)/);
+  if (doesMatch) return cap(`${doesMatch[2]} does not ${doesMatch[3]} ${doesMatch[4]}`.trim());
+
+  if (s.match(/^[a-z]+ing\b/)) return 'Denies ' + s;
+  
+  return 'No ' + s;
+}
+
 // ── Convert a label + value into a clinical statement ─────────────────────────
-function toClinicalStatement(label, value) {
+function toClinicalStatement(key, label, value) {
   if (Array.isArray(value)) {
     return value.length > 0
       ? value.map(v => `  • ${v}`).join('\n')
@@ -150,7 +256,7 @@ function toClinicalStatement(label, value) {
     const phrase = stripToPhrase(label)
       .replace(/(\?|\.$)/g, '')
       .trim();
-    return cap(phrase);
+    return polishPositive(phrase);
   }
 
   // No → negative statement
@@ -158,7 +264,16 @@ function toClinicalStatement(label, value) {
     const phrase = stripToPhrase(label)
       .replace(/(\?|\.$)/g, '')
       .trim();
-    return `No ${phrase.charAt(0).toLowerCase()}${phrase.slice(1)}`;
+    return polishNegative(phrase);
+  }
+
+  // Self-contained categorical answers (do not show label)
+  const noLabelKeys = new Set([
+    'soc_gen01', 'soc_gen02', 'soc_gen03', 'soc_gen04',
+    'neuro_dizz01', 'neuro_sync03', 'soc_gen021'
+  ]);
+  if (noLabelKeys.has(key)) {
+    return cap(strVal);
   }
 
   // Descriptive value — use short clinical label
@@ -227,7 +342,7 @@ function formatClinicalHistory(complaints, details) {
         continue;
       }
 
-      const statement = toClinicalStatement(label, value);
+      const statement = toClinicalStatement(key, label, value);
       if (statement) report += `${statement}\n`;
     }
 
