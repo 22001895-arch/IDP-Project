@@ -47,10 +47,16 @@ const RED_FLAG_COMBINATIONS = [
     id: "combo_cardiac_central_now",
     label: "Cardiac chest pain – central/left location with current pain",
     priority: "Critical",
-    match: (d) =>
-      d["prom_cardpain"] === "Yes" &&
-      (d["pain_01"] === "Central" || d["pain_01"] === "Left side of chest" || d["pain_01"] === "Central / Left side of chest") &&
-      d["pain_03"] === "Yes",
+    match: (d) => {
+      const val = d["pain_card_01"] || [];
+      // If it's an array, we check if it includes the codes. 
+      // If it's a string, we check equality.
+      const isCentral = Array.isArray(val) 
+        ? (val.includes("UCC") || val.includes("LLC") || val.includes("ULC"))
+        : (val === "UCC" || val === "LLC" || val === "ULC");
+
+      return d["prom_cardpain"] === "Yes" && isCentral && d["pain_card_03"] === "Yes";
+    },
   },
 
   // ── Rule 2 ─────────────────────────────────────────────────
@@ -60,9 +66,14 @@ const RED_FLAG_COMBINATIONS = [
     id: "combo_cardiac_central_location",
     label: "Cardiac chest pain – central/left location",
     priority: "Critical",
-    match: (d) =>
-      d["prom_cardpain"] === "Yes" &&
-      (d["pain_01"] === "Central" || d["pain_01"] === "Left side of chest" || d["pain_01"] === "Central / Left side of chest"),
+    match: (d) => {
+      const val = d["pain_card_01"] || d["pain_01"] || [];
+      const isCentral = Array.isArray(val) 
+        ? (val.includes("UCC") || val.includes("LLC") || val.includes("ULC"))
+        : (val === "UCC" || val === "LLC" || val === "ULC");
+
+      return d["prom_cardpain"] === "Yes" && isCentral;
+    },
   },
 
   // ── Rule 3 ─────────────────────────────────────────────────
