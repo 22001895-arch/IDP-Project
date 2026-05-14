@@ -49,7 +49,7 @@ const RED_FLAG_COMBINATIONS = [
     priority: "Critical",
     match: (d) =>
       d["prom_cardpain"] === "Yes" &&
-      (d["pain_card_01"] === "UCC" || d["pain_card_01"] === "LLC" || d["pain_card_01"] === "ULC") &&
+      (d["pain_card_01"] === "Central" || d["pain_card_01"] === "Left side of chest" || d["pain_card_01"] === "Central / Left side of chest") &&
       d["pain_card_03"] === "Yes",
   },
 
