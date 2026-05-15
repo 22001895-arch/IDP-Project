@@ -261,12 +261,30 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
             notesSummary = parsedNotes.summary;
         }
 
+        console.log("Step 4.5: Assigning Queue Number...");
+        let nextQueue = 0;
+        try {
+            const { rows: activeRows } = await pool.query(`SELECT queue_number FROM patients WHERE consultation_status IN ('Waiting', 'In Progress') AND queue_number IS NOT NULL`);
+            const activeQueues = new Set(activeRows.map(r => r.queue_number));
+
+            const { rows: lastRow } = await pool.query(`SELECT queue_number FROM patients WHERE queue_number IS NOT NULL ORDER BY created_at DESC LIMIT 1`);
+            if (lastRow.length > 0) {
+                nextQueue = (lastRow[0].queue_number + 1) % 1000;
+            }
+
+            while (activeQueues.has(nextQueue)) {
+                nextQueue = (nextQueue + 1) % 1000;
+            }
+        } catch(e) {
+            console.error("Queue assignment error:", e.message);
+        }
+
         console.log("Step 5: Writing to database...");
 
         // 👈 CHANGED: SQL Query (Now UPDATE instead of INSERT because Upsert created the row)
         const sql = `UPDATE patients SET 
-            redflag = $1, ai_summary = $2, triage_zone = $3, final_note_summarized = $4, details = $5
-            WHERE id = $6`;
+            redflag = $1, ai_summary = $2, triage_zone = $3, final_note_summarized = $4, details = $5, queue_number = $6
+            WHERE id = $7`;
 
         // 👈 CHANGED: Values array
         const values = [
@@ -275,6 +293,7 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
             finalTriage.zone || "UNKNOWN",
             notesSummary,
             JSON.stringify(patientData.details), // Saves the triggeredRedFlagRuleIds to DB
+            nextQueue,
             id
         ];
 
@@ -292,14 +311,24 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
             summary: error.message.includes("429") ? "Quota hit. Manual triage required." : "System Error."
         };
 
+        console.log("Step 4.5 (Fallback): Assigning Queue Number...");
+        let nextQueue = 0;
+        try {
+            const { rows: activeRows } = await pool.query(`SELECT queue_number FROM patients WHERE consultation_status IN ('Waiting', 'In Progress') AND queue_number IS NOT NULL`);
+            const activeQueues = new Set(activeRows.map(r => r.queue_number));
+            const { rows: lastRow } = await pool.query(`SELECT queue_number FROM patients WHERE queue_number IS NOT NULL ORDER BY created_at DESC LIMIT 1`);
+            if (lastRow.length > 0) nextQueue = (lastRow[0].queue_number + 1) % 1000;
+            while (activeQueues.has(nextQueue)) nextQueue = (nextQueue + 1) % 1000;
+        } catch(e) {}
+
         // 👈 CHANGED: Fallback SQL Query (Now UPDATE instead of INSERT)
         const fallbackSql = `UPDATE patients SET 
-            redflag = $1, ai_summary = $2, triage_zone = $3, final_note_summarized = $4
-            WHERE id = $5`;
+            redflag = $1, ai_summary = $2, triage_zone = $3, final_note_summarized = $4, queue_number = $5
+            WHERE id = $6`;
 
         // 👈 CHANGED: Fallback Values array
         const fallbackValues = [
-            "Unknown", fallbackResponse.summary, fallbackResponse.zone, "Error generating notes", id
+            "Unknown", fallbackResponse.summary, fallbackResponse.zone, "Error generating notes", nextQueue, id
         ];
 
         try {
