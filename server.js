@@ -194,8 +194,15 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
         detectedFlags.forEach(f => console.log(`   [${f.priority}] ${f.msg}`));
 
         // 👈 ADDED: Include triggered rule IDs in details JSON
-        const triggeredRuleIds = detectedFlags.map(f => f.questionId);
+        // 👈 FIX: was f.questionId (undefined) — corrected to f.ruleId
+        const triggeredRuleIds = detectedFlags.map(f => f.ruleId);
         patientData.details.triggeredRedFlagRuleIds = triggeredRuleIds;
+        // 👈 NEW: also store human-readable labels for the dashboard to display
+        patientData.details.triggeredRedFlagRules = detectedFlags.map(f => ({
+            id:       f.ruleId,
+            label:    f.label,
+            priority: f.priority
+        }));
         console.log(`   Triggered Rule IDs: ${triggeredRuleIds.join(", ")}`);
     } else {
         console.log("✅ No Red Flags detected.");
