@@ -5,13 +5,14 @@ The **IDP Central Backend** is a Node.js/Express server that serves as the clini
 ## 🚀 Key Features
 
 - **Dual-Stage Triage Pipeline**: 
-  - **Stage 1 (Hard Rules)**: An engine with **15+ specialized medical rules** (e.g., cardiac indicators, neurological deficits, severe respiratory distress) that triggers immediate alerts.
+  - **Stage 1 (Hard Rules)**: An engine with **15+ specialized medical rules** (e.g., cardiac indicators, neurological deficits, severe respiratory distress) that triggers immediate alerts and generates **human-readable descriptive red flag labels**.
   - **Stage 2 (AI Analysis)**: Azure OpenAI (Gemini/GPT) fallback for nuanced cases, providing categorization (RED, YELLOW, GREEN) and professional clinical summaries.
 - **rPPG Vitals Integration**: Processes contactless vitals including Heart Rate, HRV (Heart Rate Variability), Respiratory Rate, and PPI (Pulse-to-Pulse Interval).
+- **Persistent Queue Management**: Automatically assigns a looping, continuous queue number (Q000-Q999) skipping actively used numbers when a patient officially completes triage and enters the waiting room.
 - **Patient History Mapping**: Ingests structured symptom data and maps it to human-readable labels using a centralized `question.csv` bank.
 - **Doctor Authentication**: Secure RBAC (Role-Based Access Control) using `bcrypt` password hashing.
 - **Clinical Dashboard API**: Serves a prioritized queue (`v_patient_queue`) that automatically floats high-risk patients to the top.
-- **Doctor Interventions**: Support for starting consultations, tracking clinical progress, and manual red-flag overrides for physician review.
+- **Doctor Interventions**: Support for starting consultations, tracking clinical progress, completing consultations, and manual red-flag overrides for physician review.
 
 ## 🛠️ Tech Stack
 
@@ -59,9 +60,10 @@ The **IDP Central Backend** is a Node.js/Express server that serves as the clini
 - `POST /api/sync/history`: Syncs patient vitals and symptom history. Triggers the Triage Engine automatically once both datasets are present.
 
 ### Dashboard Operations
-- `GET /api/view`: Returns a "Pretty" list of patients with formatted clinical histories, sorted by priority.
+- `GET /api/view`: Returns a "Pretty" list of patients with formatted clinical histories, queue numbers, descriptive red flag triggers, sorted by priority.
 - `GET /api/waiting-room`: Lists patients currently awaiting vitals or history completion.
-- `POST /api/patient/:id/start-consultation`: Marks a patient as "In Consultation" and assigns the doctor ID.
+- `POST /api/patient/:id/start-consultation`: Marks a patient as "In Progress" and assigns the doctor ID.
+- `POST /api/patient/:id/complete-consultation`: Marks a patient as "Completed" and records checkout time, freeing up their queue number.
 - `POST /api/patient/:id/override-redflag`: Allows a doctor to manually clear an AI/Rule flag after assessment.
 
 ## 📂 Project Structure
@@ -74,7 +76,8 @@ The **IDP Central Backend** is a Node.js/Express server that serves as the clini
 - `supabase_schema.sql`: Full database schema including views for queue prioritization.
 
 ---
-**Version**: 1.2.0  
+**Version**: 1.3.0  
 **Status**: Production Ready  
-**Last Updated**: May 14, 2026
+**Last Updated**: May 15, 2026
+
 
