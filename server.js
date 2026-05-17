@@ -70,6 +70,7 @@ const initializeDatabase = async () => {
             ai_summary TEXT,
             triage_zone TEXT,
             final_note_summarized TEXT,
+            clinical_history_edited TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )`);
         console.log("✅ Database table verified!");
@@ -442,6 +443,28 @@ app.post('/api/patient/:patientId/complete-consultation', verifyApiKey, async (r
 });
 
 // ==========================================
+// 📝 ROUTE: UPDATE CLINICAL HISTORY
+// ==========================================
+app.post('/api/patient/:patientId/update-history', verifyApiKey, async (req, res) => {
+    const { patientId } = req.params;
+    const { clinical_history_edited } = req.body;
+
+    try {
+        await pool.query(
+            `UPDATE patients
+             SET clinical_history_edited = $1
+             WHERE id = $2`,
+            [clinical_history_edited, patientId]
+        );
+        console.log(`📝 Updated clinical history for patient ${patientId}`);
+        res.json({ success: true });
+    } catch (err) {
+        console.error("❌ Update history error:", err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ==========================================
 // 🚩 ROUTE: OVERRIDE RED FLAG
 // ==========================================
 app.post('/api/patient/:patientId/override-redflag', verifyApiKey, async (req, res) => {
@@ -489,7 +512,7 @@ app.get('/api/view', async (req, res) => {
             return {
                 ...row, // Send all original database columns (raw IDs, timestamps, etc.)
                 // Add the NEW "Pretty" version for the Doctor to display
-                clinical_history_formatted: formatClinicalHistory(complaints, details)
+                clinical_history_formatted: row.clinical_history_edited || formatClinicalHistory(complaints, details)
             };
         });
 
@@ -591,8 +614,11 @@ app.get('/api/fix-db', async (req, res) => {
 
         // 👈 ADDED HERE: Add duration_seconds column safely to existing table
         await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS duration_seconds INTEGER;`);
+        
+        // Add clinical_history_edited column
+        await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS clinical_history_edited TEXT;`);
 
-        res.send("✅ Database columns successfully updated (added duration_seconds)!");
+        res.send("✅ Database columns successfully updated!");
     } catch (err) {
         res.status(500).send(`❌ Error: ${err.message}`);
     }

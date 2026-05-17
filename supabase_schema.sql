@@ -212,3 +212,26 @@ WHERE table_name = 'patients'
   AND column_name IN ('consultation_status', 'consultation_completed_at')
 ORDER BY ordinal_position;
 
+-- ============================================================
+-- STEP 8: NEW COLUMNS (duration_seconds & clinical_history_edited)
+-- ============================================================
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'patients' AND column_name = 'duration_seconds'
+    ) THEN
+        ALTER TABLE patients ADD COLUMN duration_seconds INTEGER;
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'patients' AND column_name = 'clinical_history_edited'
+    ) THEN
+        ALTER TABLE patients ADD COLUMN clinical_history_edited TEXT;
+    END IF;
+END $$;
+
