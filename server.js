@@ -398,14 +398,25 @@ app.post('/api/patient/:patientId/start-consultation', verifyApiKey, async (req,
     }
 
     try {
-        await pool.query(
+        const result = await pool.query(
             `UPDATE patients
              SET seen_by_doctor_id = $1,
                  consultation_started_at = NOW(),
                  consultation_status = 'In Progress'
-             WHERE id = $2`,
+             WHERE id = $2
+               AND consultation_status = 'Waiting'`,  -- 🔒 Only claim if still Waiting
             [doctorId, patientId]
         );
+
+        if (result.rowCount === 0) {
+            // Another doctor already claimed this patient
+            const current = await pool.query(
+                `SELECT seen_by_doctor_name FROM v_patient_queue WHERE id = $1`, [patientId]
+            );
+            const name = current.rows[0]?.seen_by_doctor_name || 'another doctor';
+            return res.status(409).json({ error: `This patient is already being seen by ${name}.` });
+        }
+
         console.log(`🩺 Doctor ${doctorId} started consultation for patient ${patientId}`);
         res.json({ success: true });
     } catch (err) {
@@ -426,14 +437,20 @@ app.post('/api/patient/:patientId/complete-consultation', verifyApiKey, async (r
     }
 
     try {
-        await pool.query(
+        const result = await pool.query(
             `UPDATE patients
              SET consultation_status = 'Completed',
                  consultation_completed_at = NOW(),
                  seen_by_doctor_id = COALESCE(seen_by_doctor_id, $1)
-             WHERE id = $2`,
+             WHERE id = $2
+               AND consultation_status = 'In Progress'`,  -- 🔒 Only complete if still In Progress
             [doctorId, patientId]
         );
+
+        if (result.rowCount === 0) {
+            return res.status(409).json({ error: 'This consultation has already been completed or is not in progress.' });
+        }
+
         console.log(`✅ Doctor ${doctorId} completed consultation for patient ${patientId}`);
         res.json({ success: true });
     } catch (err) {
@@ -447,15 +464,34 @@ app.post('/api/patient/:patientId/complete-consultation', verifyApiKey, async (r
 // ==========================================
 app.post('/api/patient/:patientId/update-history', verifyApiKey, async (req, res) => {
     const { patientId } = req.params;
-    const { clinical_history_edited } = req.body;
+    const { clinical_history_edited, last_known_updated_at } = req.body;
 
     try {
-        await pool.query(
-            `UPDATE patients
-             SET clinical_history_edited = $1
-             WHERE id = $2`,
-            [clinical_history_edited, patientId]
-        );
+        // 🔒 If caller provides a timestamp, only save if the DB hasn't been updated since then
+        let result;
+        if (last_known_updated_at) {
+            result = await pool.query(
+                `UPDATE patients
+                 SET clinical_history_edited = $1,
+                     history_updated_at = NOW()
+                 WHERE id = $2
+                   AND (history_updated_at IS NULL OR history_updated_at <= $3)`,
+                [clinical_history_edited, patientId, last_known_updated_at]
+            );
+        } else {
+            result = await pool.query(
+                `UPDATE patients
+                 SET clinical_history_edited = $1,
+                     history_updated_at = NOW()
+                 WHERE id = $2`,
+                [clinical_history_edited, patientId]
+            );
+        }
+
+        if (result.rowCount === 0) {
+            return res.status(409).json({ error: 'Clinical history was already modified by another doctor. Please refresh to see the latest version before editing.' });
+        }
+
         console.log(`📝 Updated clinical history for patient ${patientId}`);
         res.json({ success: true });
     } catch (err) {
@@ -469,15 +505,34 @@ app.post('/api/patient/:patientId/update-history', verifyApiKey, async (req, res
 // ==========================================
 app.post('/api/patient/:patientId/update-summary', verifyApiKey, async (req, res) => {
     const { patientId } = req.params;
-    const { ai_summary } = req.body;
+    const { ai_summary, last_known_updated_at } = req.body;
 
     try {
-        await pool.query(
-            `UPDATE patients
-             SET ai_summary = $1
-             WHERE id = $2`,
-            [ai_summary, patientId]
-        );
+        // 🔒 If caller provides a timestamp, only save if the DB hasn't been updated since then
+        let result;
+        if (last_known_updated_at) {
+            result = await pool.query(
+                `UPDATE patients
+                 SET ai_summary = $1,
+                     summary_updated_at = NOW()
+                 WHERE id = $2
+                   AND (summary_updated_at IS NULL OR summary_updated_at <= $3)`,
+                [ai_summary, patientId, last_known_updated_at]
+            );
+        } else {
+            result = await pool.query(
+                `UPDATE patients
+                 SET ai_summary = $1,
+                     summary_updated_at = NOW()
+                 WHERE id = $2`,
+                [ai_summary, patientId]
+            );
+        }
+
+        if (result.rowCount === 0) {
+            return res.status(409).json({ error: 'AI summary was already modified by another doctor. Please refresh to see the latest version before editing.' });
+        }
+
         console.log(`🧠 Updated AI summary for patient ${patientId}`);
         res.json({ success: true });
     } catch (err) {
@@ -498,14 +553,20 @@ app.post('/api/patient/:patientId/override-redflag', verifyApiKey, async (req, r
     }
 
     try {
-        await pool.query(
+        const result = await pool.query(
             `UPDATE patients
              SET redflag_override = TRUE,
                  redflag_overridden_by_doctor_id = $1,
                  redflag_overridden_at = NOW()
-             WHERE id = $2`,
+             WHERE id = $2
+               AND (redflag_override = FALSE OR redflag_override IS NULL)`,  -- 🔒 Only if not already dismissed
             [doctorId, patientId]
         );
+
+        if (result.rowCount === 0) {
+            return res.status(409).json({ error: 'This red flag has already been dismissed by another doctor.' });
+        }
+
         console.log(`🚩 Doctor ${doctorId} overrode red flag for patient ${patientId}`);
         res.json({ success: true });
     } catch (err) {
@@ -639,6 +700,10 @@ app.get('/api/fix-db', async (req, res) => {
         
         // Add clinical_history_edited column
         await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS clinical_history_edited TEXT;`);
+
+        // Add conflict-prevention timestamp columns
+        await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS history_updated_at TIMESTAMP;`);
+        await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS summary_updated_at TIMESTAMP;`);
 
         res.send("✅ Database columns successfully updated!");
     } catch (err) {

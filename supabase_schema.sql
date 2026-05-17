@@ -235,3 +235,28 @@ BEGIN
     END IF;
 END $$;
 
+-- ============================================================
+-- STEP 9: CONFLICT PREVENTION TIMESTAMP COLUMNS
+--         Enables "First Doctor Wins" optimistic locking for
+--         clinical history and AI summary edits.
+-- ============================================================
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'patients' AND column_name = 'history_updated_at'
+    ) THEN
+        ALTER TABLE patients ADD COLUMN history_updated_at TIMESTAMP;
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'patients' AND column_name = 'summary_updated_at'
+    ) THEN
+        ALTER TABLE patients ADD COLUMN summary_updated_at TIMESTAMP;
+    END IF;
+END $$;
+
