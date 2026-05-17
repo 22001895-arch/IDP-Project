@@ -37,10 +37,17 @@ const checkHardRules = (selectedComplaints, history) => {
 //   (+)              AND condition (all must be true)
 //   (+) at least one OR  condition (at least one must be true)
 // ============================================================
+// ── Shared helpers ────────────────────────────────────────────
+// Chest pain is confirmed when it is either:
+//   • a secondary symptom  → prom_cardpain = "Yes"
+//   • the chief complaint  → confirm_cardpain = "Proceed"
+const hasChestPain = (d) =>
+  d["prom_cardpain"] === "Yes" || d["confirm_cardpain"] === "Proceed";
+
 const RED_FLAG_COMBINATIONS = [
 
   // ── Rule 1 ─────────────────────────────────────────────────
-  // prom_cardpain = Yes
+  // prom_cardpain = Yes  OR  confirm_cardpain = Proceed (chief complaint)
   // (+) pain_01   = Central / Left side of chest
   // (+) pain_03   = Yes  (pain present now)
   {
@@ -55,12 +62,12 @@ const RED_FLAG_COMBINATIONS = [
         ? (val.includes("UCC") || val.includes("LLC") || val.includes("ULC"))
         : (val === "UCC" || val === "LLC" || val === "ULC");
 
-      return d["prom_cardpain"] === "Yes" && isCentral && d["pain_card_03"] === "Yes";
+      return hasChestPain(d) && isCentral && d["pain_card_03"] === "Yes";
     },
   },
 
   // ── Rule 2 ─────────────────────────────────────────────────
-  // prom_cardpain = Yes
+  // prom_cardpain = Yes  OR  confirm_cardpain = Proceed (chief complaint)
   // (+) pain_01   = Central / Left side of chest
   {
     id: "combo_cardiac_central_location",
@@ -72,12 +79,12 @@ const RED_FLAG_COMBINATIONS = [
         ? (val.includes("UCC") || val.includes("LLC") || val.includes("ULC"))
         : (val === "UCC" || val === "LLC" || val === "ULC");
 
-      return d["prom_cardpain"] === "Yes" && isCentral;
+      return hasChestPain(d) && isCentral;
     },
   },
 
   // ── Rule 3 ─────────────────────────────────────────────────
-  // prom_cardpain = Yes
+  // prom_cardpain = Yes  OR  confirm_cardpain = Proceed (chief complaint)
   // (+) at least one of:
   //       card_pain03B = Yes  (radiation to jaw)
   //       card_pain04B = Yes  (radiation to neck)
@@ -87,7 +94,7 @@ const RED_FLAG_COMBINATIONS = [
     label: "Cardiac chest pain with radiation (jaw / neck / arm)",
     priority: "Critical",
     match: (d) =>
-      d["prom_cardpain"] === "Yes" &&
+      hasChestPain(d) &&
       (
         d["card_pain03B"] === "Yes" ||
         d["card_pain04B"] === "Yes" ||
@@ -96,14 +103,14 @@ const RED_FLAG_COMBINATIONS = [
   },
 
   // ── Rule 4 ─────────────────────────────────────────────────
-  // prom_cardpain = Yes
+  // prom_cardpain = Yes  OR  confirm_cardpain = Proceed (chief complaint)
   // (+) prom_sob  = Yes
   {
     id: "combo_cardiac_with_sob",
     label: "Cardiac chest pain with shortness of breath",
     priority: "Critical",
     match: (d) =>
-      d["prom_cardpain"] === "Yes" &&
+      hasChestPain(d) &&
       d["prom_sob"] === "Yes",
   },
 
