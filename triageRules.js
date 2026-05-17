@@ -44,6 +44,12 @@ const checkHardRules = (selectedComplaints, history) => {
 const hasChestPain = (d) =>
   d["prom_cardpain"] === "Yes" || d["confirm_cardpain"] === "Proceed";
 
+// Shortness of breath is confirmed when it is either:
+//   • a secondary symptom  → prom_sob = "Yes"
+//   • the chief complaint  → confirm_sob = "Proceed"
+const hasSOB = (d) =>
+  d["prom_sob"] === "Yes" || d["confirm_sob"] === "Proceed";
+
 const RED_FLAG_COMBINATIONS = [
 
   // ── Rule 1 ─────────────────────────────────────────────────
@@ -104,25 +110,25 @@ const RED_FLAG_COMBINATIONS = [
 
   // ── Rule 4 ─────────────────────────────────────────────────
   // prom_cardpain = Yes  OR  confirm_cardpain = Proceed (chief complaint)
-  // (+) prom_sob  = Yes
+  // (+) prom_sob = Yes  OR  confirm_sob = Proceed (chief complaint)
   {
     id: "combo_cardiac_with_sob",
     label: "Cardiac chest pain with shortness of breath",
     priority: "Critical",
     match: (d) =>
       hasChestPain(d) &&
-      d["prom_sob"] === "Yes",
+      hasSOB(d),
   },
 
   // ── Rule 5 ─────────────────────────────────────────────────
-  // prom_sob    = Yes
+  // prom_sob = Yes  OR  confirm_sob = Proceed (chief complaint)
   // (+) resp_sob09 = Yes  (wheeze)
   {
     id: "combo_sob_wheeze",
     label: "Shortness of breath with wheeze",
     priority: "Urgent",
     match: (d) =>
-      d["prom_sob"] === "Yes" &&
+      hasSOB(d) &&
       d["resp_sob09"] === "Yes",
   },
 
