@@ -465,6 +465,28 @@ app.post('/api/patient/:patientId/update-history', verifyApiKey, async (req, res
 });
 
 // ==========================================
+// 🧠 ROUTE: UPDATE AI SUMMARY
+// ==========================================
+app.post('/api/patient/:patientId/update-summary', verifyApiKey, async (req, res) => {
+    const { patientId } = req.params;
+    const { ai_summary } = req.body;
+
+    try {
+        await pool.query(
+            `UPDATE patients
+             SET ai_summary = $1
+             WHERE id = $2`,
+            [ai_summary, patientId]
+        );
+        console.log(`🧠 Updated AI summary for patient ${patientId}`);
+        res.json({ success: true });
+    } catch (err) {
+        console.error("❌ Update summary error:", err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ==========================================
 // 🚩 ROUTE: OVERRIDE RED FLAG
 // ==========================================
 app.post('/api/patient/:patientId/override-redflag', verifyApiKey, async (req, res) => {
