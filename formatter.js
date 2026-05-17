@@ -367,7 +367,7 @@ function formatClinicalHistory(complaints, details) {
     for (const key of remaining) {
       const value = details[key];
       const label = labelMap[key];
-      const display = label ? cap(stripToPhrase(label)) : cap(key.replace(/_/g, ' '));
+      const display = label ? cap(stripToPhrase(label)) : cap(key.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').trim());
 
       if (Array.isArray(value)) {
         if (value.length > 0) {
