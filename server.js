@@ -123,7 +123,7 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
     
     // Check if the current payload actually contains vital metrics
     const hasVitalsInPayload = (data.heart_rate || data.respiratory_rate || data.ppi || data.hr || data.rr || data.pi) ? true : false;
-    const vitalsIngestedAt = hasVitalsInPayload ? new Date().toISOString() : null; // 👈 ADDED HERE
+    const vitalsIngestedAt = hasVitalsInPayload ? new Date(new Date().getTime() + (8 * 60 * 60 * 1000)).toISOString().replace('Z', '') : null; // Malaysia Time (UTC+8)
 
     const complaintsStr = data.complaints ? (typeof data.complaints === 'string' ? data.complaints : JSON.stringify(data.complaints)) : null;
     const detailsStr = data.details ? (typeof data.details === 'string' ? data.details : JSON.stringify(data.details)) : null;
