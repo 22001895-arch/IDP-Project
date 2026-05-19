@@ -80,10 +80,12 @@ function stripToPhrase(text) {
 function getShortLabel(question) {
   const q = question.toLowerCase();
 
-  // Specificity order matters
+  // Specificity order matters — more specific patterns first
   if (/when was your last dialysis/.test(q)) return 'Last dialysis';
   if (/when was the stent inserted/.test(q)) return 'Stent insertion';
   if (/when did the injury happen|how did the injury happen/.test(q)) return 'Injury details';
+  if (/when did you stop smoking/.test(q)) return 'Stopped smoking';
+  if (/for how many years have you smoked/.test(q)) return 'Smoked for';
   if (/when did|when was/.test(q)) return 'Onset';
   if (/start suddenly or gradually/.test(q)) return 'Onset';
   if (/how many days|how long have you had/.test(q)) return 'Duration';
@@ -108,7 +110,17 @@ function getShortLabel(question) {
   if (/how many episodes/.test(q)) return 'No. of episodes';
   if (/how long does each episode/.test(q)) return 'Episode duration';
   if (/how bad was the pain at its worst/.test(q)) return 'Worst severity';
+  // Specific "what kind / what problems" mappings before generic fallback
+  if (/what kind of skin changes/.test(q)) return 'Skin changes';
+  if (/what problems are you having with your eye/.test(q)) return 'Eye problems';
+  if (/what problems are you having with your ear/.test(q)) return 'Ear problems';
+  if (/what problems are you having with your nose/.test(q)) return 'Nose problems';
+  if (/what problems are you having with your throat/.test(q)) return 'Throat problems';
+  if (/what problems are you having at this area/.test(q)) return 'Problem type';
+  if (/what kind of problem are you having/.test(q)) return 'Problem type';
   if (/what kind of|what problems are you having/.test(q)) return 'Type';
+  if (/history of any of the following medical conditions/.test(q)) return 'Medical conditions';
+  if (/medical devices in your body/.test(q)) return 'Medical devices';
   if (/what do you think entered|what do you think is stuck/.test(q)) return 'Foreign body';
   if (/who do you live with/.test(q)) return 'Living situation';
   if (/which of the following best describes you/.test(q)) return 'Functional status';
@@ -122,9 +134,7 @@ function getShortLabel(question) {
   if (/which nostril/.test(q)) return 'Nostril affected';
   if (/which eye is affected/.test(q)) return 'Eye affected';
   if (/which ear is affected/.test(q)) return 'Ear affected';
-  if (/is the pain on one side or both/.test(q)) return 'Side';
   if (/what body position/.test(q)) return 'Position at onset';
-  if (/\(days ago\)/.test(q)) return 'Days ago';
   // Fallback: strip and capitalise
   const phrase = stripToPhrase(question);
   return cap(phrase);
@@ -188,6 +198,8 @@ function polishPositive(phrase) {
 // ── Helper to polish English for negative statements ────────────────────────
 function polishNegative(phrase) {
   let s = phrase.toLowerCase();
+  // Remove leading "any " so "No any X" → "No X"
+  s = s.replace(/^any /, '');
 
   if (s.startsWith('hear a wheezing')) return 'No wheezing sound heard when breathing';
   if (s.includes('measured your temperature') || s.includes('measured temperature')) return 'Did not measure temperature at home';
@@ -241,47 +253,67 @@ function polishNegative(phrase) {
   return 'No ' + s;
 }
 
+// ── Key-specific value mappings (social history, etc.) ───────────────────────
+const KEY_VALUE_MAP = {
+  soc_gen01: {
+    Never:            'Non-smoker (never smoked)',
+    No:               'Ex-smoker',
+    Yes:              'Current smoker',
+  },
+  soc_gen02: {
+    Yes: 'Drinks alcohol',
+    No:  'Does not drink alcohol',
+  },
+};
+
 // ── Convert a label + value into a clinical statement ─────────────────────────
 function toClinicalStatement(key, label, value) {
+  // ── Arrays → comma-joined inline with short label ────────────────────────
   if (Array.isArray(value)) {
-    return value.length > 0
-      ? value.map(v => {
-          if (v && typeof v === 'object') {
-            if (v.label) return `  • ${v.label}${v.priority ? ` (${v.priority})` : ''}`;
-            if (v.id) return `  • ${v.id}`;
-            return `  • ${JSON.stringify(v)}`;
-          }
-          return `  • ${v}`;
-        }).join('\n')
-      : null;
+    if (value.length === 0) return null;
+    const items = value.map(v => {
+      if (v && typeof v === 'object') {
+        if (v.label) return `${v.label}${v.priority ? ` (${v.priority})` : ''}`;
+        if (v.id) return v.id;
+        return JSON.stringify(v);
+      }
+      return String(v);
+    });
+    const shortLabel = getShortLabel(label);
+    return `${shortLabel}: ${items.join(', ')}`;
   }
 
   const strVal = String(value).trim();
-  if (!strVal || strVal === 'Proceed' || strVal === 'Selected') return null; // skip navigation keys
+  if (!strVal || strVal === 'Proceed' || strVal === 'Selected') return null;
 
   const lower = strVal.toLowerCase();
 
+  // Key-specific value mappings (e.g. smoking/alcohol social history)
+  if (KEY_VALUE_MAP[key] && KEY_VALUE_MAP[key][strVal] !== undefined) {
+    return KEY_VALUE_MAP[key][strVal];
+  }
+
   // Yes → positive statement
   if (lower === 'yes') {
-    const phrase = stripToPhrase(label)
-      .replace(/(\?|\.$)/g, '')
-      .trim();
+    const phrase = stripToPhrase(label).replace(/(\?|\.$)/g, '').trim();
     return polishPositive(phrase);
   }
 
-  // No → Checklist-style negative statement
-  // This avoids awkward sentences like "No breathless when lying flat"
+  // No → checklist-style negative statement
   if (lower === 'no') {
-    const phrase = stripToPhrase(label)
-      .replace(/(\?|\.$)/g, '')
-      .trim();
+    const phrase = stripToPhrase(label).replace(/(\?|\.$)/g, '').trim();
     return polishNegative(phrase);
+  }
+
+  // Not sure → uncertainty statement
+  if (lower === 'not sure') {
+    const phrase = stripToPhrase(label).replace(/(\?|\.$)/g, '').trim();
+    return `Uncertain if ${phrase.toLowerCase()}`;
   }
 
   // Self-contained categorical answers (do not show label)
   const noLabelKeys = new Set([
-    'soc_gen01', 'soc_gen02', 'soc_gen03', 'soc_gen04',
-    'neuro_dizz01', 'neuro_sync03', 'soc_gen021'
+    'soc_gen04', 'neuro_dizz01', 'neuro_sync03'
   ]);
   if (noLabelKeys.has(key)) {
     return cap(strVal);
@@ -289,6 +321,17 @@ function toClinicalStatement(key, label, value) {
 
   // Descriptive value — use short clinical label
   const shortLabel = getShortLabel(label);
+
+  // Append day/hour unit for duration fields
+  if (/\(days? ago\)/i.test(label) && /^\d+$/.test(strVal)) {
+    const n = parseInt(strVal, 10);
+    return `${shortLabel}: ${n} ${n === 1 ? 'day' : 'days'} ago`;
+  }
+  if (/\(hours? ago\)/i.test(label) && /^\d+$/.test(strVal)) {
+    const n = parseInt(strVal, 10);
+    return `${shortLabel}: ${n} ${n === 1 ? 'hour' : 'hours'} ago`;
+  }
+
   return `${shortLabel}: ${strVal}`;
 }
 
@@ -307,8 +350,34 @@ function formatClinicalHistory(complaints, details) {
   report += `PRESENTING COMPLAINT: ${mainComplaints}\n`;
   report += `═══════════════════════════════════════════\n\n`;
 
-  // ── Defined sections ────────────────────────────────────────────────────────
+  // ── Identify associated symptoms ───────────────────────────────────────────
+  // Any prom_* = "Yes" whose matching confirm_* is NOT "Proceed" is a secondary symptom
+  const associatedSymptomNames = [];
   for (const section of SECTIONS) {
+    for (const triggerKey of section.triggers) {
+      if (!triggerKey.startsWith('prom_')) continue;
+      if (details[triggerKey] !== 'Yes') continue;
+      const confirmKey = triggerKey.replace('prom_', 'confirm_');
+      if (details[confirmKey] === 'Proceed') continue; // main complaint — skip
+      associatedSymptomNames.push(cap(section.name.toLowerCase()));
+      break;
+    }
+  }
+
+  // ── Defined sections ────────────────────────────────────────────────────────
+  let associatedRendered = false;
+
+  for (const section of SECTIONS) {
+    // Before PAST MEDICAL HISTORY, inject associated symptoms block
+    if (!associatedRendered && section.name === 'PAST MEDICAL HISTORY') {
+      if (associatedSymptomNames.length > 0) {
+        report += `─── ASSOCIATED SYMPTOMS ───\n`;
+        associatedSymptomNames.forEach(name => { report += `${name} reported\n`; });
+        report += '\n';
+      }
+      associatedRendered = true;
+    }
+
     // Collect keys belonging to this section (not yet used)
     const sectionKeys = Object.keys(details).filter(key => {
       if (usedKeys.has(key)) return false;
@@ -321,8 +390,9 @@ function formatClinicalHistory(complaints, details) {
     // Determine whether there is real content (not just routing trigger keys)
     const hasContent = sectionKeys.some(k => {
       if (!TRIGGER_RE.test(k)) return true;
-      // Array trigger keys (prompt_como01 etc.) count as content
-      return Array.isArray(details[k]) && details[k].length > 0;
+      if (Array.isArray(details[k]) && details[k].length > 0) return true;
+      // prom_* = 'Yes' also counts (will be shown in associated symptoms, not here)
+      return false;
     });
 
     if (!hasContent) {
@@ -337,18 +407,18 @@ function formatClinicalHistory(complaints, details) {
       const value = details[key];
 
       if (TRIGGER_RE.test(key)) {
-        // Only render array triggers (e.g. prompt_como01 = list of conditions)
+        // Array triggers (prompt_como01 etc.) → comma-joined inline
         if (Array.isArray(value) && value.length > 0) {
-          const label = labelMap[key] || key;
-          report += `${cap(stripToPhrase(label))}:\n`;
-          report += value.map(v => `  • ${v}`).join('\n') + '\n';
+          const lbl = labelMap[key] || key;
+          const shortLabel = getShortLabel(lbl);
+          report += `${shortLabel}: ${value.join(', ')}\n`;
         }
+        // prom_* = 'Yes' without details are handled in associated symptoms block
         continue;
       }
 
       const label = labelMap[key];
       if (!label) {
-        // Not in question.csv — will appear in catch-all; restore the key
         usedKeys.delete(key);
         continue;
       }
@@ -360,6 +430,13 @@ function formatClinicalHistory(complaints, details) {
     report += '\n';
   }
 
+  // Render associated symptoms if PAST MEDICAL HISTORY section was never hit
+  if (!associatedRendered && associatedSymptomNames.length > 0) {
+    report += `─── ASSOCIATED SYMPTOMS ───\n`;
+    associatedSymptomNames.forEach(name => { report += `${name} reported\n`; });
+    report += '\n';
+  }
+
   // ── Catch-all: keys not covered by any section ────────────────────────────
   const remaining = Object.keys(details).filter(k => !usedKeys.has(k));
   if (remaining.length > 0) {
@@ -367,25 +444,25 @@ function formatClinicalHistory(complaints, details) {
     for (const key of remaining) {
       const value = details[key];
       const label = labelMap[key];
-      const display = label ? cap(stripToPhrase(label)) : cap(key.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').trim());
+      const display = label ? getShortLabel(label) : cap(key.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').trim());
 
       if (Array.isArray(value)) {
         if (value.length > 0) {
-          report += `${display}:\n`;
-          report += value.map(v => {
+          const items = value.map(v => {
             if (v && typeof v === 'object') {
-              if (v.label) return `  • ${v.label}${v.priority ? ` (${v.priority})` : ''}`;
-              if (v.id) return `  • ${v.id}`;
-              return `  • ${JSON.stringify(v)}`;
+              if (v.label) return `${v.label}${v.priority ? ` (${v.priority})` : ''}`;
+              if (v.id) return v.id;
+              return JSON.stringify(v);
             }
-            return `  • ${v}`;
-          }).join('\n') + '\n';
+            return String(v);
+          });
+          report += `${display}: ${items.join(', ')}\n`;
         }
       } else {
-        const strVal = String(value).trim();
-        if (strVal && strVal !== 'Proceed') {
-          report += `${display}: ${strVal}\n`;
-        }
+        const stmt = label
+          ? toClinicalStatement(key, label, value)
+          : (String(value).trim() && String(value).trim() !== 'Proceed' ? `${display}: ${String(value).trim()}` : null);
+        if (stmt) report += `${stmt}\n`;
       }
     }
     report += '\n';

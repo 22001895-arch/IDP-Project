@@ -1,39 +1,41 @@
 // scratch/test_formatter.js — run with: node scratch/test_formatter.js
 const { formatClinicalHistory } = require('../formatter.js');
 
-const complaints = ['Shortness of breath', 'Chest pain'];
+const complaints = ['Skin problem'];
 
 const details = {
-  "id":            "RN57483954",
-  "age":           "55",
-  "gender":        "Male",
-  "confirm_sob":   "Proceed",
-  "prompt_como01": ["Kidney disease","Cancer","Previous stroke","Diabetes","Heart failure",
-                    "Heart disease (previous heart attack, angina)","High blood pressure",
-                    "COPD or chronic lung disease","Asthma"],
-  "como_081":      "Yes",
-  "como_091":      "Yes",
-  "como_092":      "Yesterday",
-  "como_10":       "Yes",
-  "prompt_como02": ["Urinary catheter (tube to pass urine)","Feeding tube",
-                    "Line or tube for medication or dialysis","Prosthetic heart valve",
-                    "Implanted heart pacemaker"],
-  "resp_sob01":    "Sudden",
-  "resp_sob02":    "2",
-  "resp_sob03":    "Both",
-  "resp_sob04":    "Yes",
-  "resp_sob05":    "Yes",
-  "resp_sob06":    "Yes",
-  "resp_sob07":    "Yes",
-  "resp_sob08":    "Yes",
-  "resp_sob09":    "Yes",
-  "prom_cardpain": "Yes",
-  "pain_card_01":  "UCC (Upper Central Chest)",
-  "pain_card_03":  "Yes",
-  "pain_card_04":  "Sudden",
-  "pain_card_05":  "One continuous episode",
-  "pain_card_06":  "Dull",
-  "p_final_notes": "I took insulin yesterday\n"
+  id: '03525392', age: '69', gender: 'Female',
+  prompt_como01: ['High blood pressure', 'Diabetes'],
+  como_10: 'No',
+  prompt_como02_lite: ['None of these'],
+  confirm_skin: 'Proceed',
+  skin_01: ['Redness', 'Swelling', 'Itching', 'Rashes'],
+  skin_02: ['Abdomen', 'RightForearm', 'LeftForearm', 'Head'],
+  skin_03: '1',
+  prom_sob: 'No',
+  prom_fever: 'No',
+  prom_dizziness: 'No',
+  prom_abdopain: 'Yes',
+  prom_diarrhoea: 'No',
+  med_gen01: 'Yes',
+  med_gen011: 'Yes',
+  med_gen012: 'Yes',
+  med_gen0121: 'No',
+  med_gen013: 'Not sure',
+  med_gen014: 'Yes',
+  med_gen015: 'No',
+  med_gen02: 'No',
+  med_02: 'No',
+  // Full social history — all sub-questions exercised
+  soc_gen01: 'No',              // Ex-smoker path
+  soc_gen011: '15',             // Cigarettes per day
+  soc_gen012: '3',              // When did you stop smoking (days ago)
+  soc_gen013: '25',             // For how many years smoked
+  soc_gen02: 'Yes',             // Drinks alcohol
+  soc_gen021: 'Socially (less than once a week)',
+  soc_gen03: 'Alone',
+  soc_gen04: 'I am well and active, but do not exercise regularly.',
+  p_final_notes: 'Maybe is the medicine that give me rashes',
 };
 
 const result = formatClinicalHistory(complaints, details);
