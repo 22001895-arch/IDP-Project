@@ -53,7 +53,7 @@ pool.on('connect', () => {
     console.log("🗄️ Connected to PostgreSQL Central Database!");
 });
 
-// Create the 12-column table
+// Create the table
 const initializeDatabase = async () => {
     try {
         await pool.query(`CREATE TABLE IF NOT EXISTS patients (
@@ -64,8 +64,9 @@ const initializeDatabase = async () => {
             ppi TEXT,
             respiratory_rate TEXT,
             hrv TEXT,
-            heart_rate TEXT, /* 👈 CHANGED */
-            duration_seconds INTEGER, /* 👈 ADDED HERE */
+            heart_rate TEXT,
+            duration_seconds INTEGER,
+            heart_beat_rhythm TEXT, /* 👈 ADDED HERE */
             redflag TEXT,
             ai_summary TEXT,
             triage_zone TEXT,
@@ -114,7 +115,8 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
     const respRate = data.respiratory_rate || data.rr || null;
     const heartRate = data.heart_rate || data.hr || null;
     const hrv = data.hrv || data.cv || null;
-    const durationSeconds = data.duration_seconds || null; // 👈 ADDED HERE
+    const durationSeconds = data.duration_seconds || null;
+    const heartBeatRhythm = data.heart_beat_rhythm || null; // 👈 ADDED HERE
     const complaintsStr = data.complaints ? (typeof data.complaints === 'string' ? data.complaints : JSON.stringify(data.complaints)) : null;
     const detailsStr = data.details ? (typeof data.details === 'string' ? data.details : JSON.stringify(data.details)) : null;
     const finalNotesStr = data.final_notes_raw || null;
@@ -123,14 +125,14 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
 
     try {
         // 🚀 THE UPSERT: Merge History and Vitals directly in the database
-        // 👈 ADDED duration_seconds to columns, VALUES ($9), and ON CONFLICT UPDATE
+        // 👈 ADDED duration_seconds and heart_beat_rhythm to columns, VALUES ($9, $10), and ON CONFLICT UPDATE
         const upsertSql = `
             INSERT INTO patients (
                 id, complaints, details, final_notes_raw, 
-                ppi, respiratory_rate, hrv, heart_rate, duration_seconds,
+                ppi, respiratory_rate, hrv, heart_rate, duration_seconds, heart_beat_rhythm,
                 redflag, ai_summary, triage_zone, final_note_summarized
             ) VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, 'PENDING', 'PENDING', 'PENDING', 'PENDING'
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'PENDING', 'PENDING', 'PENDING', 'PENDING'
             ) ON CONFLICT (id) DO UPDATE SET
                 complaints = COALESCE(EXCLUDED.complaints, patients.complaints),
                 details = COALESCE(EXCLUDED.details, patients.details),
@@ -139,10 +141,14 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
                 respiratory_rate = COALESCE(EXCLUDED.respiratory_rate, patients.respiratory_rate),
                 hrv = COALESCE(EXCLUDED.hrv, patients.hrv),
                 heart_rate = COALESCE(EXCLUDED.heart_rate, patients.heart_rate),
-                duration_seconds = COALESCE(EXCLUDED.duration_seconds, patients.duration_seconds)
+                duration_seconds = COALESCE(EXCLUDED.duration_seconds, patients.duration_seconds),
+                heart_beat_rhythm = COALESCE(EXCLUDED.heart_beat_rhythm, patients.heart_beat_rhythm)
             RETURNING *;
         `;
-        const upsertValues = [id, complaintsStr, detailsStr, finalNotesStr, ppi, respRate, hrv, heartRate, durationSeconds]; // 👈 ADDED HERE
+        const upsertValues = [
+            id, complaintsStr, detailsStr, finalNotesStr, 
+            ppi, respRate, hrv, heartRate, durationSeconds, heartBeatRhythm
+        ];
 
         const { rows } = await pool.query(upsertSql, upsertValues);
         patientData = rows[0];
@@ -161,7 +167,8 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
     }
 
     const hasHistory = patientData.complaints && patientData.details;
-    const hasVitals = patientData.ppi && patientData.respiratory_rate;
+    // Support either old gatekeepers (ppi) or new gatekeepers (heart_rate) alongside respiratory_rate
+    const hasVitals = patientData.respiratory_rate && (patientData.ppi || patientData.heart_rate);
 
     if (!hasHistory) {
         console.log(`⏳ Patient ${id} is in the Waiting Room. Waiting for History app...`);
@@ -225,7 +232,7 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
                 Analyze the following patient data:
                 Complaints: ${JSON.stringify(patientData.complaints)}
                 Details: ${JSON.stringify(patientData.details)}
-                Vitals: PPI=${patientData.ppi}, RespRate=${patientData.respiratory_rate}, HRV=${patientData.hrv}, HeartRate=${patientData.heart_rate}
+                Vitals: HeartRate=${patientData.heart_rate}, RespRate=${patientData.respiratory_rate}, HeartBeatRhythm=${patientData.heart_beat_rhythm || 'Normal'}, PPI=${patientData.ppi || 'N/A'}, HRV=${patientData.hrv || 'N/A'}
 
                 TASK:
                 1. Categorize as RED, YELLOW, or GREEN.
@@ -709,6 +716,9 @@ app.get('/api/fix-db', async (req, res) => {
         // 👈 ADDED HERE: Add duration_seconds column safely to existing table
         await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS duration_seconds INTEGER;`);
         
+        // Add heart_beat_rhythm column
+        await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS heart_beat_rhythm TEXT;`);
+
         // Add clinical history columns
         await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS clinical_history_edited TEXT;`);
         await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS clinical_history_generated TEXT;`);
