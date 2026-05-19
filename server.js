@@ -66,7 +66,8 @@ const initializeDatabase = async () => {
             hrv TEXT,
             heart_rate TEXT,
             duration_seconds INTEGER,
-            heart_beat_rhythm TEXT, /* 👈 ADDED HERE */
+            heart_beat_rhythm TEXT,
+            vitals_scanned_at TIMESTAMP, /* 👈 ADDED HERE */
             redflag TEXT,
             ai_summary TEXT,
             triage_zone TEXT,
@@ -116,7 +117,8 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
     const heartRate = data.heart_rate || data.hr || null;
     const hrv = data.hrv || data.cv || null;
     const durationSeconds = data.duration_seconds || null;
-    const heartBeatRhythm = data.heart_beat_rhythm || null; // 👈 ADDED HERE
+    const heartBeatRhythm = data.heart_beat_rhythm || null;
+    const vitalsScannedAt = data.timestamp || data.vitals_scanned_at || null; // 👈 ADDED HERE
     const complaintsStr = data.complaints ? (typeof data.complaints === 'string' ? data.complaints : JSON.stringify(data.complaints)) : null;
     const detailsStr = data.details ? (typeof data.details === 'string' ? data.details : JSON.stringify(data.details)) : null;
     const finalNotesStr = data.final_notes_raw || null;
@@ -125,14 +127,14 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
 
     try {
         // 🚀 THE UPSERT: Merge History and Vitals directly in the database
-        // 👈 ADDED duration_seconds and heart_beat_rhythm to columns, VALUES ($9, $10), and ON CONFLICT UPDATE
+        // 👈 ADDED vitals_scanned_at to columns, VALUES ($11), and ON CONFLICT UPDATE
         const upsertSql = `
             INSERT INTO patients (
                 id, complaints, details, final_notes_raw, 
-                ppi, respiratory_rate, hrv, heart_rate, duration_seconds, heart_beat_rhythm,
+                ppi, respiratory_rate, hrv, heart_rate, duration_seconds, heart_beat_rhythm, vitals_scanned_at,
                 redflag, ai_summary, triage_zone, final_note_summarized
             ) VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'PENDING', 'PENDING', 'PENDING', 'PENDING'
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'PENDING', 'PENDING', 'PENDING', 'PENDING'
             ) ON CONFLICT (id) DO UPDATE SET
                 complaints = COALESCE(EXCLUDED.complaints, patients.complaints),
                 details = COALESCE(EXCLUDED.details, patients.details),
@@ -142,12 +144,13 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
                 hrv = COALESCE(EXCLUDED.hrv, patients.hrv),
                 heart_rate = COALESCE(EXCLUDED.heart_rate, patients.heart_rate),
                 duration_seconds = COALESCE(EXCLUDED.duration_seconds, patients.duration_seconds),
-                heart_beat_rhythm = COALESCE(EXCLUDED.heart_beat_rhythm, patients.heart_beat_rhythm)
+                heart_beat_rhythm = COALESCE(EXCLUDED.heart_beat_rhythm, patients.heart_beat_rhythm),
+                vitals_scanned_at = COALESCE(EXCLUDED.vitals_scanned_at, patients.vitals_scanned_at)
             RETURNING *;
         `;
         const upsertValues = [
             id, complaintsStr, detailsStr, finalNotesStr, 
-            ppi, respRate, hrv, heartRate, durationSeconds, heartBeatRhythm
+            ppi, respRate, hrv, heartRate, durationSeconds, heartBeatRhythm, vitalsScannedAt
         ];
 
         const { rows } = await pool.query(upsertSql, upsertValues);
@@ -718,6 +721,9 @@ app.get('/api/fix-db', async (req, res) => {
         
         // Add heart_beat_rhythm column
         await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS heart_beat_rhythm TEXT;`);
+
+        // Add vitals_scanned_at column
+        await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS vitals_scanned_at TIMESTAMP;`);
 
         // Add clinical history columns
         await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS clinical_history_edited TEXT;`);
