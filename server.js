@@ -71,6 +71,7 @@ const initializeDatabase = async () => {
             triage_zone TEXT,
             final_note_summarized TEXT,
             clinical_history_edited TEXT,
+            clinical_history_generated TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )`);
         console.log("✅ Database table verified!");
@@ -282,10 +283,14 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
 
         console.log("Step 5: Writing to database...");
 
+        // Generate and persist formatted clinical history at triage time
+        const generatedHistory = formatClinicalHistory(patientData.complaints, patientData.details);
+
         // 👈 CHANGED: SQL Query (Now UPDATE instead of INSERT because Upsert created the row)
         const sql = `UPDATE patients SET 
-            redflag = $1, ai_summary = $2, triage_zone = $3, final_note_summarized = $4, details = $5, queue_number = $6
-            WHERE id = $7`;
+            redflag = $1, ai_summary = $2, triage_zone = $3, final_note_summarized = $4, details = $5, queue_number = $6,
+            clinical_history_generated = $7
+            WHERE id = $8`;
 
         // 👈 CHANGED: Values array
         const values = [
@@ -295,6 +300,7 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
             notesSummary,
             JSON.stringify(patientData.details), // Saves the triggeredRedFlagRuleIds to DB
             nextQueue,
+            generatedHistory,
             id
         ];
 
@@ -322,14 +328,18 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
             while (activeQueues.has(nextQueue)) nextQueue = (nextQueue + 1) % 1000;
         } catch(e) {}
 
+        // Generate and persist formatted clinical history even on AI failure
+        const fallbackHistory = formatClinicalHistory(patientData.complaints, patientData.details);
+
         // 👈 CHANGED: Fallback SQL Query (Now UPDATE instead of INSERT)
         const fallbackSql = `UPDATE patients SET 
-            redflag = $1, ai_summary = $2, triage_zone = $3, final_note_summarized = $4, queue_number = $5
-            WHERE id = $6`;
+            redflag = $1, ai_summary = $2, triage_zone = $3, final_note_summarized = $4, queue_number = $5,
+            clinical_history_generated = $6
+            WHERE id = $7`;
 
         // 👈 CHANGED: Fallback Values array
         const fallbackValues = [
-            "Unknown", fallbackResponse.summary, fallbackResponse.zone, "Error generating notes", nextQueue, id
+            "Unknown", fallbackResponse.summary, fallbackResponse.zone, "Error generating notes", nextQueue, fallbackHistory, id
         ];
 
         try {
@@ -404,7 +414,7 @@ app.post('/api/patient/:patientId/start-consultation', verifyApiKey, async (req,
                  consultation_started_at = NOW(),
                  consultation_status = 'In Progress'
              WHERE id = $2
-               AND consultation_status = 'Waiting'`,  -- 🔒 Only claim if still Waiting
+               AND consultation_status = 'Waiting'`, // 🔒 Only claim if still Waiting
             [doctorId, patientId]
         );
 
@@ -443,7 +453,7 @@ app.post('/api/patient/:patientId/complete-consultation', verifyApiKey, async (r
                  consultation_completed_at = NOW(),
                  seen_by_doctor_id = COALESCE(seen_by_doctor_id, $1)
              WHERE id = $2
-               AND consultation_status = 'In Progress'`,  -- 🔒 Only complete if still In Progress
+               AND consultation_status = 'In Progress'`, // 🔒 Only complete if still In Progress
             [doctorId, patientId]
         );
 
@@ -559,7 +569,7 @@ app.post('/api/patient/:patientId/override-redflag', verifyApiKey, async (req, r
                  redflag_overridden_by_doctor_id = $1,
                  redflag_overridden_at = NOW()
              WHERE id = $2
-               AND (redflag_override = FALSE OR redflag_override IS NULL)`,  -- 🔒 Only if not already dismissed
+               AND (redflag_override = FALSE OR redflag_override IS NULL)`, // 🔒 Only if not already dismissed
             [doctorId, patientId]
         );
 
@@ -595,7 +605,8 @@ app.get('/api/view', async (req, res) => {
             return {
                 ...row, // Send all original database columns (raw IDs, timestamps, etc.)
                 // Add the NEW "Pretty" version for the Doctor to display
-                clinical_history_formatted: row.clinical_history_edited || formatClinicalHistory(complaints, details)
+                // Priority: doctor's manual edit → stored generated → live formatter (fallback)
+                clinical_history_formatted: row.clinical_history_edited || row.clinical_history_generated || formatClinicalHistory(complaints, details)
             };
         });
 
@@ -698,8 +709,9 @@ app.get('/api/fix-db', async (req, res) => {
         // 👈 ADDED HERE: Add duration_seconds column safely to existing table
         await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS duration_seconds INTEGER;`);
         
-        // Add clinical_history_edited column
+        // Add clinical history columns
         await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS clinical_history_edited TEXT;`);
+        await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS clinical_history_generated TEXT;`);
 
         // Add conflict-prevention timestamp columns
         await pool.query(`ALTER TABLE patients ADD COLUMN IF NOT EXISTS history_updated_at TIMESTAMP;`);
