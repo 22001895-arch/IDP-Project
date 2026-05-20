@@ -487,6 +487,71 @@ app.post('/api/patient/:patientId/complete-consultation', verifyApiKey, async (r
 });
 
 // ==========================================
+// 🔄 ROUTE: UPDATE CONSULTATION STATUS
+// ==========================================
+app.post('/api/patient/:patientId/update-status', verifyApiKey, async (req, res) => {
+    const { patientId } = req.params;
+    const { doctorId, status } = req.body;
+
+    if (!doctorId || !status) {
+        return res.status(400).json({ error: "doctorId and status are required" });
+    }
+
+    try {
+        const result = await pool.query(
+            `UPDATE patients
+             SET consultation_status = $1,
+                 seen_by_doctor_id = COALESCE(seen_by_doctor_id, $2)
+             WHERE id = $3`,
+            [status, doctorId, patientId]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: 'Patient not found.' });
+        }
+
+        console.log(`🔄 Doctor ${doctorId} updated status for patient ${patientId} to '${status}'`);
+        res.json({ success: true });
+    } catch (err) {
+        console.error("❌ Update status error:", err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ==========================================
+// 🧪 ROUTE: ORDER LAB TESTS
+// ==========================================
+app.post('/api/patient/:patientId/order-labs', verifyApiKey, async (req, res) => {
+    const { patientId } = req.params;
+    const { doctorId, orderedLabs } = req.body;
+
+    if (!doctorId || !Array.isArray(orderedLabs)) {
+        return res.status(400).json({ error: "doctorId and orderedLabs (array) are required" });
+    }
+
+    try {
+        const result = await pool.query(
+            `UPDATE patients
+             SET consultation_status = 'Waiting for Lab Report',
+                 ordered_labs = $1::jsonb,
+                 seen_by_doctor_id = COALESCE(seen_by_doctor_id, $2)
+             WHERE id = $3`,
+            [JSON.stringify(orderedLabs), doctorId, patientId]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: 'Patient not found.' });
+        }
+
+        console.log(`🧪 Doctor ${doctorId} ordered labs for patient ${patientId}`);
+        res.json({ success: true });
+    } catch (err) {
+        console.error("❌ Order labs error:", err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ==========================================
 // 📝 ROUTE: UPDATE CLINICAL HISTORY
 // ==========================================
 app.post('/api/patient/:patientId/update-history', verifyApiKey, async (req, res) => {
@@ -614,13 +679,16 @@ app.get('/api/view', async (req, res) => {
         const formattedRows = result.rows.map(row => {
             let complaints = row.complaints;
             let details = row.details;
+            let ordered_labs = row.ordered_labs;
 
             // Ensure data is in Object format (Postgres JSONB is usually already an object)
             try { if (typeof complaints === 'string') complaints = JSON.parse(complaints); } catch (e) { }
             try { if (typeof details === 'string') details = JSON.parse(details); } catch (e) { }
+            try { if (typeof ordered_labs === 'string') ordered_labs = JSON.parse(ordered_labs); } catch (e) { }
 
             return {
                 ...row, // Send all original database columns (raw IDs, timestamps, etc.)
+                ordered_labs: ordered_labs || [],
                 // Add the NEW "Pretty" version for the Doctor to display
                 // Priority: doctor's manual edit → stored generated → live formatter (fallback)
                 clinical_history_formatted: row.clinical_history_edited || row.clinical_history_generated || formatClinicalHistory(complaints, details)
