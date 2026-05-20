@@ -428,10 +428,10 @@ app.post('/api/patient/:patientId/start-consultation', verifyApiKey, async (req,
         const result = await pool.query(
             `UPDATE patients
              SET seen_by_doctor_id = $1,
-                 consultation_started_at = NOW(),
+                 consultation_started_at = COALESCE(consultation_started_at, NOW()),
                  consultation_status = 'In Progress'
              WHERE id = $2
-               AND consultation_status = 'Waiting'`, // 🔒 Only claim if still Waiting
+               AND consultation_status IN ('Waiting', 'Waiting for Lab Report', 'Waiting for Further Consultation')`, // 🔒 Allow fresh starts or resuming
             [doctorId, patientId]
         );
 
@@ -530,17 +530,36 @@ app.post('/api/patient/:patientId/order-labs', verifyApiKey, async (req, res) =>
     }
 
     try {
+        // Fetch existing ordered labs first to prevent overwriting
+        const current = await pool.query(`SELECT ordered_labs FROM patients WHERE id = $1`, [patientId]);
+        if (current.rows.length === 0) {
+            return res.status(404).json({ error: 'Patient not found.' });
+        }
+        
+        let existingLabs = [];
+        try {
+            if (current.rows[0].ordered_labs) {
+                existingLabs = typeof current.rows[0].ordered_labs === 'string' 
+                    ? JSON.parse(current.rows[0].ordered_labs) 
+                    : current.rows[0].ordered_labs;
+            }
+        } catch (e) {
+            console.error("Error parsing existing ordered_labs:", e);
+        }
+
+        const combinedLabs = Array.from(new Set([...existingLabs, ...orderedLabs]));
+
         const result = await pool.query(
             `UPDATE patients
              SET consultation_status = 'Waiting for Lab Report',
                  ordered_labs = $1::jsonb,
                  seen_by_doctor_id = COALESCE(seen_by_doctor_id, $2)
              WHERE id = $3`,
-            [JSON.stringify(orderedLabs), doctorId, patientId]
+            [JSON.stringify(combinedLabs), doctorId, patientId]
         );
 
         if (result.rowCount === 0) {
-            return res.status(404).json({ error: 'Patient not found.' });
+            return res.status(404).json({ error: 'Failed to update patient.' });
         }
 
         console.log(`🧪 Doctor ${doctorId} ordered labs for patient ${patientId}`);
