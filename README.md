@@ -17,10 +17,10 @@ The **IDP Central Backend** is a Node.js/Express server that serves as the clini
 ## 🛠️ Tech Stack
 
 - **Runtime**: Node.js 20+ & Express
-- **Database**: PostgreSQL (via Supabase) with custom views for queue management.
+- **Database**: PostgreSQL (hosted locally via Supabase CLI & Docker)
 - **AI/ML**: Azure OpenAI / Gemini for medical-grade summarization and decision support.
-- **Security**: `bcrypt` for credentials, API Key verification for ingestion endpoints.
-- **Formatting**: Custom clinical history formatter for structured symptom visualization.
+- **Security**: `bcrypt` for credentials, API Key verification for data ingestion.
+- **Public Tunneling**: Ngrok for secure HTTP tunneling to Vercel/external devices.
 
 ## 📦 Installation & Setup
 
@@ -37,19 +37,47 @@ The **IDP Central Backend** is a Node.js/Express server that serves as the clini
 
 3. **Configure Environment Variables**:
    Create a `.env` file in the root directory with:
-   - `DATABASE_URL`: PostgreSQL connection string.
+   - `DATABASE_URL`: Local PostgreSQL connection string (`postgresql://postgres:postgres@127.0.0.1:54322/postgres`).
    - `AZURE_OPENAI_API_KEY`: Azure/OpenAI API key.
    - `AZURE_OPENAI_ENDPOINT`: API endpoint.
    - `DEPLOYMENT_NAME`: AI model deployment ID.
    - `HOSPITAL_API_KEY`: Secret key for securing data ingestion from the History/rPPG apps.
 
-4. **Initialize Database**:
-   - Run `supabase_schema.sql` in your SQL editor to create the `doctors` and `patients` tables and the optimized views.
+---
 
-5. **Start the Server**:
+## ⛁ Local Supabase Database Setup
+
+To run the database locally without relying on the Supabase Cloud:
+
+1. **Prerequisites**: Ensure Docker Desktop is installed and running.
+2. **Start Supabase**:
    ```bash
-   npm start
+   npx supabase start
    ```
+3. **Database Studio**: Open **[http://127.0.0.1:54323](http://127.0.0.1:54323)** in your browser to access the local Supabase Studio (Table Editor).
+4. **Stop Database**:
+   To shut down the local database containers cleanly:
+   ```bash
+   npx supabase stop
+   ```
+
+---
+
+## 🌐 Public Exposing & Tunneling (for Vercel Frontend)
+
+To connect an external production build (like Vercel) to your local API:
+
+1. Start your local Express server:
+   ```bash
+   node server.js
+   ```
+2. Start the Ngrok HTTP tunnel to expose your local port 5000:
+   ```bash
+   .\ngrok.exe http --url=unranked-ream-astound.ngrok-free.dev 5000
+   ```
+3. Your API will now be reachable over secure HTTPS at: `https://unranked-ream-astound.ngrok-free.dev/api`
+
+---
 
 ## 🔌 API Reference
 
@@ -74,10 +102,9 @@ The **IDP Central Backend** is a Node.js/Express server that serves as the clini
 - `question.csv`: The source-of-truth mapping for all clinical questions.
 - `redflag_combinations.csv`: Documentation of the rules implemented in the triage engine.
 - `supabase_schema.sql`: Full database schema including views for queue prioritization.
+- `supabase/`: Local Supabase CLI configuration directories.
 
 ---
-**Version**: 1.3.0  
+**Version**: 1.4.0  
 **Status**: Production Ready  
-**Last Updated**: May 15, 2026
-
-
+**Last Updated**: May 22, 2026
