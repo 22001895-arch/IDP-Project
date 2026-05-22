@@ -1,3 +1,5 @@
 .env
 node_modules/
 scratch/
+ngrok.exe
+*.sql
