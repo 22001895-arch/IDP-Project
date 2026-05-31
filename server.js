@@ -7,10 +7,10 @@ const { AzureOpenAI } = require("openai");
 const os = require('os');
 const path = require('path');
 const bcrypt = require('bcrypt');
-const { formatClinicalHistory } = require('./formatter.js');
+const { formatClinicalHistory, getLabelMap } = require('./formatter.js');
 
 // Import your Hard Rules & Red Flag Detection Engine
-const { checkHardRules, detectRedFlags } = require('./triageRules.js');
+const { detectRedFlags } = require('./triageRules.js');
 
 const app = express();
 app.use(cors());
@@ -178,7 +178,7 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
 
     const hasHistory = patientData.complaints && patientData.details;
     // Support either old gatekeepers (ppi) or new gatekeepers (heart_rate) alongside respiratory_rate
-    const hasVitals = patientData.respiratory_rate && (patientData.ppi || patientData.heart_rate);
+    const hasVitals = !!patientData.respiratory_rate;
 
     if (!hasHistory) {
         console.log(`⏳ Patient ${id} is in the Waiting Room. Waiting for History app...`);
@@ -228,38 +228,71 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
     }
 
     try {
-        console.log("Step 2: Checking Medical Safety Rules...");
-        const ruleResult = checkHardRules(patientData.complaints, patientData.details);
+        console.log("Step 2: Sending to Azure OpenAI for clinical evaluation and hidden red flag check...");
 
-        if (ruleResult) {
-            console.log("🚨 Rule Triggered:", ruleResult.zone);
-            finalTriage = ruleResult;
-            redFlagStatus = "Yes"; // Ensure Yes when hard rule fires too
-        } else {
-            console.log("Step 3: No Red Flags found. Sending to Azure OpenAI...");
-            const prompt = `
-                You are a medical triage system.
-                Analyze the following patient data:
-                Complaints: ${JSON.stringify(patientData.complaints)}
-                Details: ${JSON.stringify(patientData.details)}
-                Vitals: HeartRate=${patientData.heart_rate}, RespRate=${patientData.respiratory_rate}, HeartBeatRhythm=${patientData.heart_beat_rhythm || 'Normal'}, PPI=${patientData.ppi || 'N/A'}, HRV=${patientData.hrv || 'N/A'}
+        // Map question IDs to human-readable question text
+        const labelMap = getLabelMap();
+        const detailsWithQuestions = {};
+        if (patientData.details) {
+            for (const [key, value] of Object.entries(patientData.details)) {
+                if (key === 'triggeredRedFlagRuleIds' || key === 'triggeredRedFlagRules') continue;
+                const questionText = labelMap[key] || key;
+                detailsWithQuestions[questionText] = value;
+            }
+        }
 
-                TASK:
-                1. Categorize as RED, YELLOW, or GREEN.
-                2. Write a 2-sentence summary.
+        const prompt = `
+            You are a medical triage system.
+            Analyze the following patient data:
+            Complaints: ${JSON.stringify(patientData.complaints)}
+            Details: ${JSON.stringify(detailsWithQuestions)}
+            Vitals: RespRate=${patientData.respiratory_rate}, HeartBeatRhythm=${patientData.heart_beat_rhythm || 'Normal'}, HRV=${patientData.hrv || 'N/A'}
 
-                IMPORTANT: Return ONLY a raw JSON object. 
-                Example: {"zone": "GREEN", "summary": "Patient is stable."}
-            `;
+            TASK:
+            1. Evaluate the patient's vital signs (e.g., Respiratory Rate, Heart Beat Rhythm, HRV) and identify any abnormal values.
+            2. Correlate the vital signs with the patient's questionnaire answers (e.g., check if elevated respiratory rate aligns with breathing difficulties, or irregular rhythm/abnormal HRV aligns with chest pain/panic).
+            3. Write a 2-sentence clinical summary of the patient that incorporates the clinical findings and the correlation between the vitals and symptoms.
+            4. Evaluate if there is any "hidden" red flag potential indicating acute distress or urgent danger.
+               
+               CRITICAL EVALUATION INSTRUCTION:
+               Analyze the vital signs and patient history in tandem. Only flag a red flag if there is a clear, clinically severe correlation (e.g. high respiratory rate combined with shortness of breath, or abnormal heart rhythm combined with chest pain).
+               Do NOT trigger a red flag for mild, isolated vital abnormalities that lack any correlating clinical complaint. 
+               Be conservative to prevent alert fatigue.
 
-            const result = await aiClient.chat.completions.create({
-                messages: [{ role: "system", content: prompt }],
-                model: process.env.DEPLOYMENT_NAME,
-                response_format: { type: "json_object" }
+            IMPORTANT: Return ONLY a raw JSON object with this schema:
+            {
+              "summary": "A 2-sentence clinical summary incorporating the vital signs and symptom correlations.",
+              "ai_redflag_detected": true/false,
+              "ai_redflag_reason": "Provide a detailed clinical reason explaining the correlation and rationale behind the red flag evaluation (e.g. why the flag was triggered based on vitals-symptom correlation, or why it was deemed safe if false)."
+            }
+        `;
+
+        const result = await aiClient.chat.completions.create({
+            messages: [{ role: "system", content: prompt }],
+            model: process.env.DEPLOYMENT_NAME,
+            response_format: { type: "json_object" }
+        });
+
+        finalTriage = JSON.parse(result.choices[0].message.content);
+        console.log("Step 3: AI Result Generated -> Red Flag Detected:", finalTriage.ai_redflag_detected);
+
+        if (finalTriage.ai_redflag_detected) {
+            redFlagStatus = "Yes";
+            
+            // Initialize arrays if they don't exist
+            if (!patientData.details.triggeredRedFlagRuleIds) {
+                patientData.details.triggeredRedFlagRuleIds = [];
+            }
+            if (!patientData.details.triggeredRedFlagRules) {
+                patientData.details.triggeredRedFlagRules = [];
+            }
+
+            patientData.details.triggeredRedFlagRuleIds.push("ai_hidden_redflag");
+            patientData.details.triggeredRedFlagRules.push({
+                id: "ai_hidden_redflag",
+                label: `AI Detected: ${finalTriage.ai_redflag_reason}`,
+                priority: "Urgent"
             });
-
-            finalTriage = JSON.parse(result.choices[0].message.content);
-            console.log("Step 4: AI Result Generated ->", finalTriage.zone);
         }
 
         if (patientData.final_notes_raw && patientData.final_notes_raw.trim() !== "") {
@@ -280,7 +313,7 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
             notesSummary = parsedNotes.summary;
         }
 
-        console.log("Step 4.5: Assigning Queue Number...");
+        console.log("Step 4: Assigning Queue Number...");
         let nextQueue = 0;
         try {
             const { rows: activeRows } = await pool.query(`SELECT queue_number FROM patients WHERE consultation_status IN ('Waiting', 'In Progress') AND queue_number IS NOT NULL`);
@@ -310,10 +343,11 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
             WHERE id = $8`;
 
         // 👈 CHANGED: Values array
+        const triageZoneToSave = "GREEN";
         const values = [
             redFlagStatus,
             finalTriage.summary || "No summary",
-            finalTriage.zone || "UNKNOWN",
+            triageZoneToSave,
             notesSummary,
             JSON.stringify(patientData.details), // Saves the triggeredRedFlagRuleIds to DB
             nextQueue,
@@ -335,7 +369,7 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
             summary: error.message.includes("429") ? "Quota hit. Manual triage required." : "System Error."
         };
 
-        console.log("Step 4.5 (Fallback): Assigning Queue Number...");
+        console.log("Step 4 (Fallback): Assigning Queue Number...");
         let nextQueue = 0;
         try {
             const { rows: activeRows } = await pool.query(`SELECT queue_number FROM patients WHERE consultation_status IN ('Waiting', 'In Progress') AND queue_number IS NOT NULL`);

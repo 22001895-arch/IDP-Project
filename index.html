@@ -1,15 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Server Dashboard</title>
     <style>
-        body { 
-            font-family: 'Courier New', Courier, monospace; 
-            padding: 20px; 
-            background-color: #1e1e2f; 
-            color: #fff; 
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            padding: 20px;
+            background-color: #1e1e2f;
+            color: #fff;
         }
 
         /* Top Navigation/Header area */
@@ -22,11 +23,11 @@
             margin-bottom: 20px;
         }
 
-        h1 { 
-            color: #00d2ff; 
+        h1 {
+            color: #00d2ff;
             margin: 0;
         }
-        
+
         .nav-btn {
             background-color: #00d2ff;
             color: #1e1e2f;
@@ -42,85 +43,138 @@
             background-color: #fff;
             box-shadow: 0 0 15px rgba(255, 255, 255, 0.4);
         }
-        
+
         /* Dark Mode Table Styles */
-        table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            background: #2a2a40; 
-            box-shadow: 0 4px 8px rgba(0,0,0,0.3); 
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #2a2a40;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
             border-radius: 8px;
-            overflow: hidden; /* Keeps rounded corners clean */
+            overflow: hidden;
+            /* Keeps rounded corners clean */
         }
-        th, td { 
-            padding: 15px; 
-            text-align: left; 
+
+        th,
+        td {
+            padding: 15px;
+            text-align: left;
             border-bottom: 1px solid #3a3a5a;
         }
-        th { 
-            background-color: #1a1a2a; 
-            color: #aab8c2; 
+
+        th {
+            background-color: #1a1a2a;
+            color: #aab8c2;
             text-transform: uppercase;
             letter-spacing: 1px;
             font-size: 14px;
         }
-        tr:nth-child(even) { background-color: #252538; }
-        
-        /* Make rows look clickable */
-        tbody tr { cursor: pointer; transition: background 0.2s; }
-        tbody tr:hover { background-color: #3a3a5a; }
-        
-        /* 🚨 Red Flag Row Styles (Dark Mode Adjusted) */
-        tbody tr.critical-row { background-color: #3d1c1c !important; }
-        tbody tr.critical-row:hover { background-color: #5c2626 !important; }
-        tbody tr.critical-row td { color: #ff4c4c; font-weight: bold; }
 
-        .error { color: #ff4c4c; font-weight: bold; margin-bottom: 10px; }
+        tr:nth-child(even) {
+            background-color: #252538;
+        }
+
+        /* Make rows look clickable */
+        tbody tr {
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        tbody tr:hover {
+            background-color: #3a3a5a;
+        }
+
+        /* 🚨 Red Flag Row Styles (Dark Mode Adjusted) */
+        tbody tr.critical-row {
+            background-color: #3d1c1c !important;
+        }
+
+        tbody tr.critical-row:hover {
+            background-color: #5c2626 !important;
+        }
+
+        tbody tr.critical-row td {
+            color: #ff4c4c;
+            font-weight: bold;
+        }
+
+        .error {
+            color: #ff4c4c;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
 
         /* Dark Mode Modal (Pop-up) Styles */
-        .modal { 
-            display: none; 
-            position: fixed; 
-            z-index: 1000; 
-            left: 0; top: 0; 
-            width: 100%; height: 100%; 
-            background-color: rgba(0,0,0,0.8); 
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
         }
-        .modal-content { 
-            background-color: #2a2a40; 
-            margin: 5% auto; 
-            padding: 25px; 
-            border-radius: 8px; 
-            width: 60%; 
-            max-height: 80vh; 
+
+        .modal-content {
+            background-color: #2a2a40;
+            margin: 5% auto;
+            padding: 25px;
+            border-radius: 8px;
+            width: 60%;
+            max-height: 80vh;
             overflow-y: auto;
             box-shadow: 0 5px 20px rgba(0, 210, 255, 0.1);
             border: 1px solid #3a3a5a;
         }
-        .close-btn { 
-            color: #aab8c2; 
-            float: right; 
-            font-size: 28px; 
-            font-weight: bold; 
-            cursor: pointer; 
+
+        .close-btn {
+            color: #aab8c2;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
         }
-        .close-btn:hover { color: #fff; }
-        
+
+        .close-btn:hover {
+            color: #fff;
+        }
+
         /* Triage Badges */
-        .badge { padding: 5px 10px; border-radius: 4px; font-weight: bold; color: white; display: inline-block;}
-        .badge-RED { background-color: #ff4c4c; }
-        .badge-YELLOW { background-color: #ffc107; color: black; }
-        .badge-GREEN { background-color: #28a745; }
-        .badge-UNKNOWN { background-color: #6c757d; }
+        .badge {
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-weight: bold;
+            color: white;
+            display: inline-block;
+        }
+
+        .badge-RED {
+            background-color: #ff4c4c;
+        }
+
+        .badge-YELLOW {
+            background-color: #ffc107;
+            color: black;
+        }
+
+        .badge-GREEN {
+            background-color: #28a745;
+        }
+
+        .badge-UNKNOWN {
+            background-color: #6c757d;
+        }
 
         /* Dark Mode Data Sections */
-        .data-section { 
-            background: #1e1e2f; 
-            padding: 15px; 
-            border-radius: 5px; 
-            margin-bottom: 15px; 
+        .data-section {
+            background: #1e1e2f;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
             border-left: 4px solid #00d2ff;
         }
+
         .data-section h3 {
             color: #aab8c2;
             margin-top: 0;
@@ -129,7 +183,7 @@
         }
 
         pre {
-            background: #12121c !important; 
+            background: #12121c !important;
             color: #00d2ff;
             border: 1px solid #3a3a5a;
             padding: 10px;
@@ -137,13 +191,14 @@
         }
     </style>
 </head>
+
 <body>
 
     <div class="header-container">
         <h1>🩺 Database Dashboard</h1>
         <a href="status.html" class="nav-btn">🔌 View Server Status</a>
     </div>
-    
+
     <p style="color: #aab8c2;">Pulling data from the Central Node... (Click on any patient to view details)</p>
     <div id="errorMessage" class="error"></div>
 
@@ -157,28 +212,32 @@
             </tr>
         </thead>
         <tbody id="tableBody">
-            </tbody>
+        </tbody>
     </table>
 
     <div id="patientModal" class="modal">
         <div class="modal-content">
             <span class="close-btn" onclick="closeModal()">&times;</span>
             <h2 id="modal-title" style="color: #00d2ff;">Patient Details</h2>
-            
+
             <div style="margin-bottom: 15px;">
                 <strong>Triage Zone:</strong> <span id="modal-zone" class="badge"></span>
-                <span style="margin-left: 20px;"><strong>Red Flag Triggered:</strong> <span id="modal-redflag"></span></span>
+                <span style="margin-left: 20px;"><strong>Red Flag Triggered:</strong> <span
+                        id="modal-redflag"></span></span>
             </div>
 
             <div class="data-section">
                 <h3>🤖 AI Analysis</h3>
                 <p><strong>Clinical Summary:</strong> <span id="modal-summary"></span></p>
-                <p><strong>Patient Notes Summary:</strong> <span id="modal-notes-summary" style="color: #ffc107;"></span></p>
+                <p><strong>Patient Notes Summary:</strong> <span id="modal-notes-summary"
+                        style="color: #ffc107;"></span></p>
             </div>
 
             <div class="data-section">
                 <h3>🩺 Vitals</h3>
-                <p><strong>PPI:</strong> <span id="modal-ppi"></span> | <strong>Resp Rate:</strong> <span id="modal-resp"></span> | <strong>HRV:</strong> <span id="modal-hrv"></span> | <strong>Heart Rate:</strong> <span id="modal-heart-rate"></span></p>
+                <p><strong>PPI:</strong> <span id="modal-ppi"></span> | <strong>Resp Rate:</strong> <span
+                        id="modal-resp"></span> | <strong>HRV:</strong> <span id="modal-hrv"></span> | <strong>Heart
+                        Rate:</strong> <span id="modal-heart-rate"></span></p>
             </div>
 
             <div class="data-section">
@@ -196,7 +255,7 @@
     </div>
 
     <script>
-        const SERVER_URL = "/api/view"; 
+        const SERVER_URL = "/api/view";
         let allPatients = [];
 
         async function fetchPatientData() {
@@ -205,16 +264,16 @@
                 if (!response.ok) throw new Error(`Server error: ${response.status}`);
 
                 allPatients = await response.json();
-                
+
                 const tableBody = document.getElementById('tableBody');
-                tableBody.innerHTML = ""; 
+                tableBody.innerHTML = "";
 
                 allPatients.forEach(patient => {
                     let displayComplaints = patient.complaints;
                     try {
                         const parsed = JSON.parse(patient.complaints);
                         if (Array.isArray(parsed)) displayComplaints = parsed.join(", ");
-                    } catch(e) { /* leave as is */ }
+                    } catch (e) { /* leave as is */ }
 
                     const isRedFlag = patient.redflag === "Yes";
                     const rowClass = isRedFlag ? "critical-row" : "";
@@ -243,33 +302,33 @@
 
             document.getElementById('modal-title').innerText = `Patient Details: ID ${patient.id}`;
             document.getElementById('modal-redflag').innerText = patient.redflag || "Unknown";
-            
+
             document.getElementById('modal-summary').innerText = patient.ai_summary || "No AI summary available.";
             document.getElementById('modal-notes-summary').innerText = patient.final_note_summarized || "N/A";
             document.getElementById('modal-raw-notes').innerText = `"${patient.final_notes_raw || "None"}"`;
-            
+
             document.getElementById('modal-ppi').innerText = patient.ppi || "N/A";
             document.getElementById('modal-resp').innerText = patient.respiratory_rate || "N/A";
             document.getElementById('modal-hrv').innerText = patient.hrv || "N/A";
-            
+
             // 👈 CHANGED: Now looking for patient.heart_rate instead of patient.spo2
             document.getElementById('modal-heart-rate').innerText = patient.heart_rate || "N/A";
 
             const zoneElement = document.getElementById('modal-zone');
             zoneElement.innerText = patient.triage_zone || "UNKNOWN";
-            zoneElement.className = `badge badge-${patient.triage_zone || "UNKNOWN"}`; 
+            zoneElement.className = `badge badge-${patient.triage_zone || "UNKNOWN"}`;
 
             try {
                 const parsedComplaints = JSON.parse(patient.complaints);
                 document.getElementById('modal-complaints').innerText = Array.isArray(parsedComplaints) ? parsedComplaints.join(", ") : patient.complaints;
-            } catch(e) {
+            } catch (e) {
                 document.getElementById('modal-complaints').innerText = patient.complaints;
             }
 
             try {
                 const parsedDetails = JSON.parse(patient.details);
                 document.getElementById('modal-details').innerText = JSON.stringify(parsedDetails, null, 2);
-            } catch(e) {
+            } catch (e) {
                 document.getElementById('modal-details').innerText = patient.details;
             }
 
@@ -280,7 +339,7 @@
             document.getElementById('patientModal').style.display = "none";
         }
 
-        window.onclick = function(event) {
+        window.onclick = function (event) {
             const modal = document.getElementById('patientModal');
             if (event.target === modal) {
                 closeModal();
@@ -292,4 +351,5 @@
     </script>
 
 </body>
+
 </html>

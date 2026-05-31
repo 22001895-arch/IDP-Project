@@ -4,12 +4,12 @@ The **IDP Central Backend** is a Node.js/Express server that serves as the clini
 
 ## 🚀 Key Features
 
-- **Dual-Stage Triage Pipeline**: 
-  - **Stage 1 (Hard Rules)**: An engine with **15+ specialized medical rules** (e.g., cardiac indicators, neurological deficits, severe respiratory distress) that triggers immediate alerts and generates **human-readable descriptive red flag labels**.
-  - **Stage 2 (AI Analysis)**: Azure OpenAI (Gemini/GPT) fallback for nuanced cases, providing categorization (RED, YELLOW, GREEN) and professional clinical summaries.
+- **Integrated Triage Pipeline**: 
+  - **Combination Rules**: Evaluates incoming symptoms against **15 combination rules** (e.g., cardiac chest pain with radiation, loss of balance, syncope) to immediately identify high-priority patients.
+  - **AI Clinical Evaluation**: Azure OpenAI (Gemini/GPT) evaluation for all patients, which reviews vital signs in correlation with clinical history, checks for "hidden" red flags, and generates 2-sentence clinical summaries with clinical reasoning.
 - **rPPG Vitals Integration**: Processes contactless vitals including Heart Rate, HRV (Heart Rate Variability), Respiratory Rate, and PPI (Pulse-to-Pulse Interval).
 - **Persistent Queue Management**: Automatically assigns a looping, continuous queue number (Q000-Q999) skipping actively used numbers when a patient officially completes triage and enters the waiting room.
-- **Patient History Mapping**: Ingests structured symptom data and maps it to human-readable labels using a centralized `question.csv` bank.
+- **Semantic AI Prompting**: Ingests structured symptom data and translates raw Question IDs into human-readable questions (using the lookup from `question.csv`) before passing them to the AI, ensuring the AI model gets full semantic context.
 - **Doctor Authentication**: Secure RBAC (Role-Based Access Control) using `bcrypt` password hashing.
 - **Clinical Dashboard API**: Serves a prioritized queue (`v_patient_queue`) that automatically floats high-risk patients to the top.
 - **Doctor Interventions**: Support for starting consultations, tracking clinical progress, completing consultations, and manual red-flag overrides for physician review.
@@ -97,14 +97,14 @@ To connect an external production build (like Vercel) to your local API:
 ## 📂 Project Structure
 
 - `server.js`: Central Express server and AI pipeline orchestration.
-- `triageRules.js`: The hard-rule engine containing red flag combination logic.
-- `formatter.js`: Logic for converting raw question IDs into readable clinical reports.
-- `question.csv`: The source-of-truth mapping for all clinical questions.
-- `redflag_combinations.csv`: Documentation of the rules implemented in the triage engine.
-- `supabase_schema.sql`: Full database schema including views for queue prioritization.
+- `triageRules.js`: The triage engine containing red flag combination logic (legacy hard safety rules removed).
+- `formatter.js`: Logic for converting raw question IDs into readable clinical reports and lookup functions.
+- `question.csv`: Centralized question lookup map.
+- `redflag_combinations.csv`: Spreadsheet documenting the 15 combination rules.
+- `supabase_schema.sql`: Database schema & views supporting prioritised queue.
 - `supabase/`: Local Supabase CLI configuration directories.
 
 ---
-**Version**: 1.4.0  
+**Version**: 1.5.0  
 **Status**: Production Ready  
-**Last Updated**: May 22, 2026
+**Last Updated**: May 31, 2026

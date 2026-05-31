@@ -217,7 +217,7 @@ function polishNegative(phrase) {
   if (s.startsWith('shortness of breath triggered by')) return 'Not triggered by dust, smoke, or cold air';
   if (s.includes('pain get worse when you take a deep breath')) return 'Pain does not worsen with deep breath or cough';
 
-  if (s.startsWith('feeling nauseated')) return 'Denies nausea';
+  if (s.startsWith('feeling nauseated')) return 'No nausea';
   if (s.includes('abdomen feel bloated')) return 'Abdomen is not bloated or distended';
   if (s.includes('coughing or moving make the pain worse')) return 'Pain does not worsen with movement or coughing';
 
@@ -248,7 +248,7 @@ function polishNegative(phrase) {
   const doesMatch = s.match(/^does (your |the )?(.*?) (feel|get|look|make) (.*)/);
   if (doesMatch) return cap(`${doesMatch[2]} does not ${doesMatch[3]} ${doesMatch[4]}`.trim());
 
-  if (s.match(/^[a-z]+ing\b/)) return 'Denies ' + s;
+  if (s.match(/^[a-z]+ing\b/)) return 'No' + s;
 
   return 'No ' + s;
 }
@@ -471,4 +471,4 @@ function formatClinicalHistory(complaints, details) {
   return report.trim();
 }
 
-module.exports = { formatClinicalHistory };
+module.exports = { formatClinicalHistory, getLabelMap };

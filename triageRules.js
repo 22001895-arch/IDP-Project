@@ -1,22 +1,6 @@
 // backend/triageRules.js
 
-// ============================================================
-// 🏥 LEGACY: Hard-rule engine (kept for backward compat)
-// COMPLAINT_RULES will be populated in a future iteration.
-// ============================================================
-const COMPLAINT_RULES = {
-  // Red flag rules will be implemented here
-};
 
-const checkHardRules = (selectedComplaints, history) => {
-  for (const complaint of selectedComplaints) {
-    if (COMPLAINT_RULES[complaint]) {
-      const result = COMPLAINT_RULES[complaint](selectedComplaints, history);
-      if (result) return result;
-    }
-  }
-  return null; // Let Gemini handle it if no hard rules match
-};
 
 
 // ============================================================
@@ -301,4 +285,4 @@ const detectRedFlags = (complaints, details) => {
 };
 
 
-module.exports = { checkHardRules, detectRedFlags };
+module.exports = { detectRedFlags };
