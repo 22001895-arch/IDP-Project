@@ -399,10 +399,9 @@
                                 <div style="margin-top: 8px;"><strong>Details:</strong> ${trimmedDetails}</div>
                             </td>
                             <td>
-                                <span class="data-badge ${patient.hasPPI ? 'has-data' : 'no-data'}">PPI: ${patient.hasPPI ? '✓' : '✗'}</span>
-                                <span class="data-badge ${patient.hasRespiratoryRate ? 'has-data' : 'no-data'}">RR: ${patient.hasRespiratoryRate ? '✓' : '✗'}</span>
-                                <span class="data-badge ${patient.hasHRV ? 'has-data' : 'no-data'}">HRV: ${patient.hasHRV ? '✓' : '✗'}</span>
                                 <span class="data-badge ${patient.hasHeartRate ? 'has-data' : 'no-data'}">HR: ${patient.hasHeartRate ? '✓' : '✗'}</span>
+                                <span class="data-badge ${patient.hasRespiratoryRate ? 'has-data' : 'no-data'}">RR: ${patient.hasRespiratoryRate ? '✓' : '✗'}</span>
+                                <span class="data-badge ${patient.hasRhythm ? 'has-data' : 'no-data'}">Rhythm: ${patient.hasRhythm ? '✓' : '✗'}</span>
                             </td>
                         </tr>
                     `;

@@ -235,9 +235,8 @@
 
             <div class="data-section">
                 <h3>🩺 Vitals</h3>
-                <p><strong>PPI:</strong> <span id="modal-ppi"></span> | <strong>Resp Rate:</strong> <span
-                        id="modal-resp"></span> | <strong>HRV:</strong> <span id="modal-hrv"></span> | <strong>Heart
-                        Rate:</strong> <span id="modal-heart-rate"></span></p>
+                <p><strong>Heart Rate:</strong> <span id="modal-heart-rate"></span> | <strong>Resp Rate:</strong> <span
+                        id="modal-resp"></span> | <strong>Rhythm:</strong> <span id="modal-rhythm"></span></p>
             </div>
 
             <div class="data-section">
@@ -307,12 +306,9 @@
             document.getElementById('modal-notes-summary').innerText = patient.final_note_summarized || "N/A";
             document.getElementById('modal-raw-notes').innerText = `"${patient.final_notes_raw || "None"}"`;
 
-            document.getElementById('modal-ppi').innerText = patient.ppi || "N/A";
-            document.getElementById('modal-resp').innerText = patient.respiratory_rate || "N/A";
-            document.getElementById('modal-hrv').innerText = patient.hrv || "N/A";
-
-            // 👈 CHANGED: Now looking for patient.heart_rate instead of patient.spo2
             document.getElementById('modal-heart-rate').innerText = patient.heart_rate || "N/A";
+            document.getElementById('modal-resp').innerText = patient.respiratory_rate || "N/A";
+            document.getElementById('modal-rhythm').innerText = patient.heart_beat_rhythm || "Normal";
 
             const zoneElement = document.getElementById('modal-zone');
             zoneElement.innerText = patient.triage_zone || "UNKNOWN";

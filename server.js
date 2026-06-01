@@ -177,8 +177,8 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
     }
 
     const hasHistory = patientData.complaints && patientData.details;
-    // Support either old gatekeepers (ppi) or new gatekeepers (heart_rate) alongside respiratory_rate
-    const hasVitals = !!patientData.respiratory_rate;
+    // Require both respiratory_rate and heart_rate for vitals validation
+    const hasVitals = !!patientData.respiratory_rate && !!patientData.heart_rate;
 
     if (!hasHistory) {
         console.log(`⏳ Patient ${id} is in the Waiting Room. Waiting for History app...`);
@@ -246,16 +246,16 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
             Analyze the following patient data:
             Complaints: ${JSON.stringify(patientData.complaints)}
             Details: ${JSON.stringify(detailsWithQuestions)}
-            Vitals: RespRate=${patientData.respiratory_rate}, HeartBeatRhythm=${patientData.heart_beat_rhythm || 'Normal'}, HRV=${patientData.hrv || 'N/A'}
+            Vitals: HeartRate=${patientData.heart_rate || 'N/A'}, RespRate=${patientData.respiratory_rate}, HeartBeatRhythm=${patientData.heart_beat_rhythm || 'Normal'}
 
             TASK:
-            1. Evaluate the patient's vital signs (e.g., Respiratory Rate, Heart Beat Rhythm, HRV) and identify any abnormal values.
-            2. Correlate the vital signs with the patient's questionnaire answers (e.g., check if elevated respiratory rate aligns with breathing difficulties, or irregular rhythm/abnormal HRV aligns with chest pain/panic).
+            1. Evaluate the patient's vital signs (e.g., Heart Rate, Respiratory Rate, Heart Beat Rhythm) and identify any abnormal values.
+            2. Correlate the vital signs with the patient's questionnaire answers (e.g., check if elevated respiratory rate aligns with breathing difficulties, or elevated/abnormal heart rate or irregular rhythm aligns with chest pain/palpitations/dizziness).
             3. Write a 2-sentence clinical summary of the patient that incorporates the clinical findings and the correlation between the vitals and symptoms.
             4. Evaluate if there is any "hidden" red flag potential indicating acute distress or urgent danger.
                
                CRITICAL EVALUATION INSTRUCTION:
-               Analyze the vital signs and patient history in tandem. Only flag a red flag if there is a clear, clinically severe correlation (e.g. high respiratory rate combined with shortness of breath, or abnormal heart rhythm combined with chest pain).
+               Analyze the vital signs and patient history in tandem. Only flag a red flag if there is a clear, clinically severe correlation (e.g. high respiratory rate combined with shortness of breath, or abnormal heart rate/irregular rhythm combined with chest pain/palpitations/dizziness).
                Do NOT trigger a red flag for mild, isolated vital abnormalities that lack any correlating clinical complaint. 
                Be conservative to prevent alert fatigue.
 
@@ -819,11 +819,10 @@ app.get('/api/waiting-room', async (req, res) => {
                 detailsText: typeof details === 'object' ? JSON.stringify(details) : String(details),
                 hasComplaints: !!data.complaints,
                 hasDetails: !!data.details,
-                hasPPI: !!data.ppi,
-                hasRespiratoryRate: !!data.respiratory_rate,
-                hasHRV: !!data.hrv,
                 hasHeartRate: !!data.heart_rate,
-                status: (data.complaints && data.details && data.ppi && data.respiratory_rate)
+                hasRespiratoryRate: !!data.respiratory_rate,
+                hasRhythm: !!data.heart_beat_rhythm,
+                status: (data.complaints && data.details && data.respiratory_rate && data.heart_rate)
                     ? "Complete - Ready for Triage"
                     : data.complaints && data.details
                         ? "Waiting for Vitals (rPPG)"
