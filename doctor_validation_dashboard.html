@@ -1,0 +1,3783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clinical Triage Validation Board</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #f8fafc;
+            --bg-card: #ffffff;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --primary: #0f766e;
+            --primary-light: #f0fdfa;
+            --red-flag: #e11d48;
+            --red-flag-light: #fff1f2;
+            --green-flag: #16a34a;
+            --green-flag-light: #f0fdf4;
+            --border: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        header {
+            background-color: #0f172a;
+            color: #ffffff;
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #1e293b;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .header-subtitle {
+            font-size: 0.85rem;
+            color: #94a3b8;
+        }
+
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 380px;
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-card);
+        }
+
+        .search-filter-box {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            box-sizing: border-box;
+            outline: none;
+        }
+
+        .filter-tabs {
+            display: flex;
+            gap: 8px;
+        }
+
+        .filter-tab {
+            flex: 1;
+            padding: 8px;
+            text-align: center;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            background-color: var(--bg-primary);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+
+        .filter-tab.active {
+            background-color: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .case-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .case-item {
+            padding: 14px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .case-item:hover {
+            background-color: var(--bg-primary);
+            border-color: #cbd5e1;
+        }
+
+        .case-item.selected {
+            background-color: var(--primary-light);
+            border-color: var(--primary);
+        }
+
+        .case-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .case-id {
+            font-weight: 700;
+            font-size: 0.9rem;
+            font-family: monospace;
+        }
+
+        .case-badge {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 3px 8px;
+            border-radius: 12px;
+        }
+
+        .case-badge.redflag {
+            background-color: var(--red-flag-light);
+            color: var(--red-flag);
+        }
+
+        .case-badge.greenflag {
+            background-color: var(--green-flag-light);
+            color: var(--green-flag);
+        }
+
+        .case-item-complaints {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .case-item-vitals {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            display: flex;
+            gap: 12px;
+        }
+
+        .content-pane {
+            flex: 1;
+            overflow-y: auto;
+            padding: 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            color: var(--text-secondary);
+        }
+
+        .medical-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .medical-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 2px solid var(--bg-primary);
+            padding-bottom: 16px;
+        }
+
+        .patient-title {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .patient-meta {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+            display: flex;
+            gap: 16px;
+        }
+
+        .vitals-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+
+        .vital-box {
+            background-color: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px;
+            text-align: center;
+        }
+
+        .vital-box.abnormal {
+            border-color: #fecdd3;
+            background-color: #fff1f2;
+        }
+
+        .vital-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+        }
+
+        .vital-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-top: 6px;
+        }
+
+        .vital-value.abnormal {
+            color: var(--red-flag);
+        }
+
+        .vital-status {
+            font-size: 0.7rem;
+            font-weight: 600;
+            margin-top: 4px;
+            display: inline-block;
+        }
+
+        .vital-status.abnormal {
+            color: var(--red-flag);
+        }
+
+        .vital-status.normal {
+            color: var(--green-flag);
+        }
+
+        .details-section {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .details-section h4 {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 700;
+            border-left: 4px solid var(--primary);
+            padding-left: 8px;
+        }
+
+        .clinical-reason-box {
+            background-color: var(--primary-light);
+            border: 1px solid #ccfbf1;
+            color: #0f766e;
+            padding: 16px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .clinical-reason-box.red {
+            background-color: var(--red-flag-light);
+            border-color: #fee2e2;
+            color: #b91c1c;
+        }
+
+        .questionnaire-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        .questionnaire-table th, .questionnaire-table td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .questionnaire-table th {
+            background-color: var(--bg-primary);
+            color: var(--text-secondary);
+        }
+
+        .questionnaire-table td.question {
+            font-weight: 600;
+            width: 50%;
+        }
+
+        .questionnaire-table td.answer {
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🏥 Clinical Triage Validation Board</h1>
+        <span class="header-subtitle">50 Cases Framework</span>
+    </header>
+    <div class="main-container">
+        <div class="sidebar">
+            <div class="search-filter-box">
+                <input type="text" id="searchInput" class="search-input" placeholder="Search cases or symptoms...">
+                <div class="filter-tabs">
+                    <div class="filter-tab active" onclick="setFilter('all')">ALL (50)</div>
+                    <div class="filter-tab" onclick="setFilter('red')">RED FLAG</div>
+                    <div class="filter-tab" onclick="setFilter('green')">NORMAL</div>
+                </div>
+            </div>
+            <div class="case-list" id="caseList"></div>
+        </div>
+        <div class="content-pane" id="detailContainer"></div>
+    </div>
+
+    <script>
+        const testCases = [
+  {
+    "id": "case_01_cardiac_afib",
+    "age": 62,
+    "gender": "Male",
+    "complaints": [
+      "Chest Pain"
+    ],
+    "details": {
+      "prom_cardpain": "Yes",
+      "confirm_cardpain": "Proceed",
+      "pain_card_01": "UCC",
+      "pain_card_03": "Yes",
+      "card_pain03B": "No",
+      "card_pain04B": "No",
+      "card_pain05B": "No",
+      "prompt_como01": [
+        "Hypertension",
+        "Hypercholesterolaemia",
+        "Ischaemic Heart Disease"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [
+        "Aspirin 75mg daily",
+        "Atorvastatin 20mg daily",
+        "Perindopril 4mg daily"
+      ],
+      "soc_gen01": "No",
+      "soc_gen02": "Yes",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "Stopped smoking 8 years ago",
+      "soc_gen013": "10 years of active smoking before quitting",
+      "soc_gen021": "Social drinking, about 1-2 standard drinks on weekends",
+      "med_gen011": "Yes",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "Yes",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "pain_card_02": "Started about 2 hours ago",
+      "pain_card_031A": "8 out of 10, very intense pain",
+      "pain_card_04": "Started suddenly while I was resting",
+      "pain_card_05": "One continuous episode, has not stopped",
+      "pain_card_06": "Crushing, heavy pressure like someone is standing on my chest",
+      "pain_card_07A": "Constant and does not get better",
+      "card_pain09B": "No, pressing on my chest does not make it worse",
+      "card_pain10B": "Yes, feeling nauseous and sick",
+      "card_pain11B": "Yes, sweating heavily and feeling cold",
+      "card_pain01": "I was sitting on the sofa watching television",
+      "card_pain02B": "No back radiation",
+      "card_pain06B": "No, sitting forward does not change the pain",
+      "card_pain07B": "No, resting has not improved it",
+      "card_pain08B": "Yes, walking or moving makes it feel much worse"
+    },
+    "vitals": {
+      "respiratory_rate": 18,
+      "heart_beat_rhythm": "Irregular",
+      "heart_rate": 112
+    },
+    "ground_truth_redflag": "Yes",
+    "clinical_reason": "Patient presents with central chest pain currently active, combined with irregular heart rhythm. Highly suggestive of acute coronary syndrome with new-onset atrial fibrillation or acute arrhythmia."
+  },
+  {
+    "id": "case_02_cardiac_ischemia",
+    "age": 58,
+    "gender": "Female",
+    "complaints": [
+      "Chest Pain"
+    ],
+    "details": {
+      "prom_cardpain": "Yes",
+      "confirm_cardpain": "Proceed",
+      "pain_card_01": "LLC",
+      "pain_card_03": "Yes",
+      "prompt_como01": [
+        "Type 2 Diabetes",
+        "Hypertension"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [
+        "Metformin 500mg BD",
+        "Amlodipine 5mg daily"
+      ],
+      "soc_gen01": "Never",
+      "soc_gen02": "No",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "N/A",
+      "soc_gen013": "N/A",
+      "soc_gen021": "N/A",
+      "med_gen011": "Yes",
+      "med_gen012": "Yes",
+      "med_gen0121": "No",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "pain_card_02": "Started about 2 hours ago",
+      "pain_card_031A": "8 out of 10, very intense pain",
+      "pain_card_04": "Started suddenly while I was resting",
+      "pain_card_05": "One continuous episode, has not stopped",
+      "pain_card_06": "Crushing, heavy pressure like someone is standing on my chest",
+      "pain_card_07A": "Constant and does not get better",
+      "card_pain03B": "No jaw radiation",
+      "card_pain05B": "No arm radiation",
+      "card_pain09B": "No, pressing on my chest does not make it worse",
+      "card_pain10B": "Yes, feeling nauseous and sick",
+      "card_pain11B": "Yes, sweating heavily and feeling cold",
+      "card_pain01": "I was sitting on the sofa watching television",
+      "card_pain02B": "No back radiation",
+      "card_pain04B": "No neck radiation",
+      "card_pain06B": "No, sitting forward does not change the pain",
+      "card_pain07B": "No, resting has not improved it",
+      "card_pain08B": "Yes, walking or moving makes it feel much worse"
+    },
+    "vitals": {
+      "respiratory_rate": 22,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 108
+    },
+    "ground_truth_redflag": "Yes",
+    "clinical_reason": "Patient has active left-sided chest pain correlated with mild tachypnea (22 breaths/min) and depressed HRV, presenting risk for myocardial ischemia."
+  },
+  {
+    "id": "case_03_cardiac_radiation",
+    "age": 65,
+    "gender": "Male",
+    "complaints": [
+      "Chest Pain"
+    ],
+    "details": {
+      "prom_cardpain": "Yes",
+      "confirm_cardpain": "Proceed",
+      "pain_card_01": "UCC",
+      "card_pain05B": "Yes",
+      "pain_card_03": "Yes",
+      "prompt_como01": [
+        "Angina",
+        "Hypertension"
+      ],
+      "prompt_como02": [
+        "Coronary Stent"
+      ],
+      "med_gen01": [
+        "GTN Spray PRN",
+        "Bisoprolol 2.5mg daily",
+        "Clopidogrel 75mg daily"
+      ],
+      "soc_gen01": "Yes",
+      "soc_gen02": "Yes",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "Lives alone",
+      "soc_gen011": "15 cigarettes per day",
+      "soc_gen012": "N/A",
+      "soc_gen013": "25 years of smoking history",
+      "soc_gen021": "Social drinking, about 1-2 standard drinks on weekends",
+      "med_gen011": "Yes",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "Yes",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "pain_card_02": "Started about 2 hours ago",
+      "pain_card_031A": "8 out of 10, very intense pain",
+      "pain_card_04": "Started suddenly while I was resting",
+      "pain_card_05": "One continuous episode, has not stopped",
+      "pain_card_06": "Crushing, heavy pressure like someone is standing on my chest",
+      "pain_card_07A": "Constant and does not get better",
+      "card_pain03B": "No jaw radiation",
+      "card_pain09B": "No, pressing on my chest does not make it worse",
+      "card_pain10B": "Yes, feeling nauseous and sick",
+      "card_pain11B": "Yes, sweating heavily and feeling cold",
+      "card_pain01": "I was sitting on the sofa watching television",
+      "card_pain02B": "No back radiation",
+      "card_pain04B": "No neck radiation",
+      "card_pain06B": "No, sitting forward does not change the pain",
+      "card_pain07B": "No, resting has not improved it",
+      "card_pain08B": "Yes, walking or moving makes it feel much worse"
+    },
+    "vitals": {
+      "respiratory_rate": 20,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 108
+    },
+    "ground_truth_redflag": "Yes",
+    "clinical_reason": "Active chest pain radiating to the arm with borderline respiratory rate and borderline HRV. Suggestive of acute coronary syndrome."
+  },
+  {
+    "id": "case_04_cardiac_with_sob",
+    "age": 71,
+    "gender": "Female",
+    "complaints": [
+      "Chest Pain",
+      "Shortness of Breath"
+    ],
+    "details": {
+      "prom_cardpain": "Yes",
+      "confirm_cardpain": "Proceed",
+      "prom_sob": "Yes",
+      "confirm_sob": "Proceed",
+      "pain_card_01": "UCC",
+      "pain_card_03": "Yes",
+      "prompt_como01": [
+        "Congestive Heart Failure",
+        "Chronic Kidney Disease"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [
+        "Frusemide 40mg daily",
+        "Enalapril 10mg daily"
+      ],
+      "soc_gen01": "Never",
+      "soc_gen02": "No",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "N/A",
+      "soc_gen013": "N/A",
+      "soc_gen021": "N/A",
+      "med_gen011": "No",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "resp_sob01": "It started gradually over the last 2 days and has become very difficult today",
+      "resp_sob02": "2 days",
+      "resp_sob03": "I feel short of breath even when resting or sitting quietly",
+      "resp_sob04": "Yes, severely limited, I can't walk even a short distance without gasping for air",
+      "resp_sob05": "No, not significantly worse when lying flat",
+      "resp_sob06": "No waking up at night",
+      "resp_sob07": "No specific environmental trigger identified",
+      "resp_sob08": "No, deep breathing does not make it worse",
+      "resp_sob09": "No wheezing sound heard",
+      "pain_card_02": "Started about 2 hours ago",
+      "pain_card_031A": "8 out of 10, very intense pain",
+      "pain_card_04": "Started suddenly while I was resting",
+      "pain_card_05": "One continuous episode, has not stopped",
+      "pain_card_06": "Crushing, heavy pressure like someone is standing on my chest",
+      "pain_card_07A": "Constant and does not get better",
+      "card_pain03B": "No jaw radiation",
+      "card_pain05B": "No arm radiation",
+      "card_pain09B": "No, pressing on my chest does not make it worse",
+      "card_pain10B": "Yes, feeling nauseous and sick",
+      "card_pain11B": "Yes, sweating heavily and feeling cold",
+      "card_pain01": "I was sitting on the sofa watching television",
+      "card_pain02B": "No back radiation",
+      "card_pain04B": "No neck radiation",
+      "card_pain06B": "No, sitting forward does not change the pain",
+      "card_pain07B": "No, resting has not improved it",
+      "card_pain08B": "Yes, walking or moving makes it feel much worse"
+    },
+    "vitals": {
+      "respiratory_rate": 26,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 108
+    },
+    "ground_truth_redflag": "Yes",
+    "clinical_reason": "Dual symptoms of chest pain and shortness of breath (SOB) correlated with clear tachypnea (26 breaths/min) and depressed HRV. Highly concerning for pulmonary embolism, cardiac failure, or myocardial infarction."
+  },
+  {
+    "id": "case_05_cardiac_arrhythmia",
+    "age": 79,
+    "gender": "Male",
+    "complaints": [
+      "Dizziness",
+      "Palpitations"
+    ],
+    "details": {
+      "prom_dizziness": "Yes",
+      "confirm_dizziness": "Proceed",
+      "prompt_como01": [
+        "Coronary Artery Disease",
+        "Atrial Fibrillation"
+      ],
+      "prompt_como02": [
+        "Pacemaker"
+      ],
+      "med_gen01": [
+        "Warfarin 3mg daily",
+        "Digoxin 125mcg daily"
+      ],
+      "soc_gen01": "No",
+      "soc_gen02": "No",
+      "soc_gen04": "Fully independent in all activities of daily living, walks without aids",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "Stopped smoking 8 years ago",
+      "soc_gen013": "10 years of active smoking before quitting",
+      "soc_gen021": "N/A",
+      "med_gen011": "No",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "Yes",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "neuro_dizz02": "Started this morning",
+      "neuro_dizz01": "Lightheadedness and feeling like I might faint",
+      "neuro_dizz03": "Suddenly when the chest discomfort/palpitations started",
+      "neuro_dizz05": "Present all the time when standing or walking"
+    },
+    "vitals": {
+      "respiratory_rate": 16,
+      "heart_beat_rhythm": "Irregular",
+      "heart_rate": 48
+    },
+    "ground_truth_redflag": "Yes",
+    "clinical_reason": "Patient reports dizziness and palpitations correlated with irregular heart rhythm and low HRV. Suggests heart block or sick sinus syndrome."
+  },
+  {
+    "id": "case_06_presyncope_cardiac",
+    "age": 67,
+    "gender": "Female",
+    "complaints": [
+      "Fainting / Blackout"
+    ],
+    "details": {
+      "prom_syncope": "Yes",
+      "confirm_syncope": "Proceed",
+      "neuro_sync07": "Yes",
+      "prompt_como01": [
+        "Aortic Stenosis",
+        "Hypertension"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [
+        "Ramipril 5mg daily",
+        "Atorvastatin 40mg daily"
+      ],
+      "soc_gen01": "Never",
+      "soc_gen02": "No",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "N/A",
+      "soc_gen013": "N/A",
+      "soc_gen021": "N/A",
+      "med_gen011": "Yes",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "neuro_sync01": "Today, about 2 hours ago",
+      "neuro_sync02": "Yes, completely blacked out and was unresponsive for about 1 minute",
+      "neuro_sync021": "About 1-2 minutes, according to my family member",
+      "neuro_sync03": "I was standing up talking to my daughter when it happened",
+      "neuro_sync04": "Yes, happened suddenly without any warning or lightheadedness"
+    },
+    "vitals": {
+      "respiratory_rate": 22,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 115
+    },
+    "ground_truth_redflag": "Yes",
+    "clinical_reason": "Fainting spell accompanied by chest pain, correlated with tachypnea and depressed HRV. Highly suspicious for cardiogenic syncope."
+  },
+  {
+    "id": "case_07_resp_heart_failure",
+    "age": 73,
+    "gender": "Male",
+    "complaints": [
+      "Shortness of Breath"
+    ],
+    "details": {
+      "prom_sob": "Yes",
+      "confirm_sob": "Proceed",
+      "prompt_como01": [
+        "Congestive Heart Failure",
+        "Type 2 Diabetes"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [
+        "Spironolactone 25mg daily",
+        "Frusemide 80mg daily",
+        "Metformin 1g BD"
+      ],
+      "soc_gen01": "No",
+      "soc_gen02": "No",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "Stopped smoking 8 years ago",
+      "soc_gen013": "10 years of active smoking before quitting",
+      "soc_gen021": "N/A",
+      "med_gen011": "No",
+      "med_gen012": "Yes",
+      "med_gen0121": "No",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "resp_sob01": "It started gradually over the last 2 days and has become very difficult today",
+      "resp_sob02": "2 days",
+      "resp_sob03": "I feel short of breath even when resting or sitting quietly",
+      "resp_sob04": "Yes, severely limited, I can't walk even a short distance without gasping for air",
+      "resp_sob05": "Yes, extremely breathless when lying flat, need to sleep sitting up",
+      "resp_sob06": "Yes, woke up gasping for air twice in the night needing to sit up immediately",
+      "resp_sob07": "No specific environmental trigger identified",
+      "resp_sob08": "No, deep breathing does not make it worse",
+      "resp_sob09": "No wheezing sound heard"
+    },
+    "vitals": {
+      "respiratory_rate": 28,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 115
+    },
+    "ground_truth_redflag": "Yes",
+    "clinical_reason": "Severe shortness of breath correlated with severe tachypnea (28 breaths/min) and low HRV at rest, indicating acute pulmonary congestion or heart failure exacerbation."
+  },
+  {
+    "id": "case_08_resp_orthopnea",
+    "age": 68,
+    "gender": "Female",
+    "complaints": [
+      "Shortness of Breath"
+    ],
+    "details": {
+      "prom_sob": "Yes",
+      "confirm_sob": "Proceed",
+      "prompt_como01": [
+        "Mitral Valve Regurgitation",
+        "Hypertension"
+      ],
+      "prompt_como02": [
+        "Prosthetic Heart Valve"
+      ],
+      "med_gen01": [
+        "Warfarin 5mg daily",
+        "Lisinopril 10mg daily"
+      ],
+      "soc_gen01": "Never",
+      "soc_gen02": "No",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "Lives alone",
+      "soc_gen011": "N/A",
+      "soc_gen012": "N/A",
+      "soc_gen013": "N/A",
+      "soc_gen021": "N/A",
+      "med_gen011": "Yes",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "Yes",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "resp_sob01": "It started gradually over the last 2 days and has become very difficult today",
+      "resp_sob02": "2 days",
+      "resp_sob03": "I feel short of breath even when resting or sitting quietly",
+      "resp_sob04": "Yes, severely limited, I can't walk even a short distance without gasping for air",
+      "resp_sob05": "Yes, extremely breathless when lying flat, need to sleep sitting up",
+      "resp_sob06": "No waking up at night",
+      "resp_sob07": "No specific environmental trigger identified",
+      "resp_sob08": "No, deep breathing does not make it worse",
+      "resp_sob09": "No wheezing sound heard"
+    },
+    "vitals": {
+      "respiratory_rate": 27,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 115
+    },
+    "ground_truth_redflag": "Yes",
+    "clinical_reason": "Shortness of breath correlated with severe tachypnea (27 breaths/min) indicating potential hypoxemia or acute respiratory failure."
+  },
+  {
+    "id": "case_09_resp_asthma_wheeze",
+    "age": 35,
+    "gender": "Female",
+    "complaints": [
+      "Shortness of Breath"
+    ],
+    "details": {
+      "prom_sob": "Yes",
+      "confirm_sob": "Proceed",
+      "resp_sob09": "Yes",
+      "prompt_como01": [
+        "Asthma",
+        "Allergic Rhinitis"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [
+        "Seretide Inhaler 2 puffs BD",
+        "Ventolin Inhaler PRN"
+      ],
+      "soc_gen01": "Never",
+      "soc_gen02": "No",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "N/A",
+      "soc_gen013": "N/A",
+      "soc_gen021": "N/A",
+      "med_gen011": "No",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "resp_sob01": "It started very suddenly and got severe within minutes",
+      "resp_sob02": "2 days",
+      "resp_sob03": "I feel short of breath even when resting or sitting quietly",
+      "resp_sob04": "Yes, severely limited, I can't walk even a short distance without gasping for air",
+      "resp_sob05": "No, not significantly worse when lying flat",
+      "resp_sob06": "No waking up at night",
+      "resp_sob07": "Yes, triggered by dust and cold air conditioning",
+      "resp_sob08": "No, deep breathing does not make it worse"
+    },
+    "vitals": {
+      "respiratory_rate": 29,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 120
+    },
+    "ground_truth_redflag": "Yes",
+    "clinical_reason": "Shortness of breath with active wheezing correlated with severe tachypnea (29 breaths/min) and depressed HRV. Indicates acute severe asthma attack or bronchospasm."
+  },
+  {
+    "id": "case_10_resp_pe_pleuritic",
+    "age": 44,
+    "gender": "Male",
+    "complaints": [
+      "Shortness of Breath",
+      "Chest Pain"
+    ],
+    "details": {
+      "prom_sob": "Yes",
+      "confirm_sob": "Proceed",
+      "prom_cardpain": "Yes",
+      "confirm_cardpain": "Proceed",
+      "pain_card_03": "Yes",
+      "prompt_como01": [
+        "Deep Vein Thrombosis",
+        "Obesity"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [
+        "Rivaroxaban 20mg daily (stopped recently)"
+      ],
+      "soc_gen01": "Yes",
+      "soc_gen02": "Yes",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "15 cigarettes per day",
+      "soc_gen012": "N/A",
+      "soc_gen013": "25 years of smoking history",
+      "soc_gen021": "Social drinking, about 1-2 standard drinks on weekends",
+      "med_gen011": "No",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "Yes",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "resp_sob01": "It started very suddenly and got severe within minutes",
+      "resp_sob02": "2 days",
+      "resp_sob03": "I feel short of breath even when resting or sitting quietly",
+      "resp_sob04": "Yes, severely limited, I can't walk even a short distance without gasping for air",
+      "resp_sob05": "No, not significantly worse when lying flat",
+      "resp_sob06": "No waking up at night",
+      "resp_sob07": "No specific environmental trigger identified",
+      "resp_sob08": "Yes, the pain gets significantly worse when I take a deep breath or cough",
+      "resp_sob09": "No wheezing sound heard",
+      "pain_card_02": "Started about 2 hours ago",
+      "pain_card_031A": "8 out of 10, very intense pain",
+      "pain_card_04": "Started suddenly while I was resting",
+      "pain_card_05": "One continuous episode, has not stopped",
+      "pain_card_01": "On the side of my chest, worse when taking a breath",
+      "pain_card_06": "Sharp, stabbing pain that catches when I try to breathe in",
+      "pain_card_07A": "Constant, but gets sharper with deep breaths",
+      "card_pain03B": "No jaw radiation",
+      "card_pain05B": "No arm radiation",
+      "card_pain09B": "No, pressing on chest doesn't change it",
+      "card_pain10B": "No nausea",
+      "card_pain11B": "Yes, sweating due to breathing difficulty",
+      "card_pain01": "I was sitting on the sofa watching television",
+      "card_pain02B": "No back radiation",
+      "card_pain04B": "No neck radiation",
+      "card_pain06B": "No, sitting forward does not change the pain",
+      "card_pain07B": "No, resting has not improved it",
+      "card_pain08B": "Yes, walking or moving makes it feel much worse"
+    },
+    "vitals": {
+      "respiratory_rate": 28,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 108
+    },
+    "ground_truth_redflag": "Yes",
+    "clinical_reason": "Acute SOB and chest pain correlated with severe tachypnea (28 breaths/min) and depressed HRV. Red flag for pulmonary embolism."
+  },
+  {
+    "id": "case_11_resp_copd_status",
+    "age": 69,
+    "gender": "Male",
+    "complaints": [
+      "Shortness of Breath",
+      "Cough"
+    ],
+    "details": {
+      "prom_sob": "Yes",
+      "confirm_sob": "Proceed",
+      "prom_cough": "Yes",
+      "confirm_cough": "Proceed",
+      "prompt_como01": [
+        "COPD",
+        "Ischaemic Heart Disease"
+      ],
+      "prompt_como02": [
+        "Home Oxygen Concentrator"
+      ],
+      "med_gen01": [
+        "Symbicort Inhaler",
+        "Spiriva Inhaler",
+        "Amlodipine 10mg daily"
+      ],
+      "soc_gen01": "Yes",
+      "soc_gen02": "No",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "15 cigarettes per day",
+      "soc_gen012": "N/A",
+      "soc_gen013": "25 years of smoking history",
+      "soc_gen021": "N/A",
+      "med_gen011": "Yes",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "resp_sob01": "It started gradually over the last 2 days and has become very difficult today",
+      "resp_sob02": "2 days",
+      "resp_sob03": "I feel short of breath even when resting or sitting quietly",
+      "resp_sob04": "Yes, severely limited, I can't walk even a short distance without gasping for air",
+      "resp_sob05": "No, not significantly worse when lying flat",
+      "resp_sob06": "No waking up at night",
+      "resp_sob07": "No specific environmental trigger identified",
+      "resp_sob08": "No, deep breathing does not make it worse",
+      "resp_sob09": "No wheezing sound heard",
+      "resp_cou01": "Coughing for about 4 days now",
+      "resp_cou02": "Yes, coughing up thick phlegm",
+      "resp_cou021": "Yellowish-green coloured thick phlegm",
+      "resp_cou022": "Yes, coughing up much more phlegm than usual",
+      "resp_cou023": "Yes, it changed from clear to dark yellow-green",
+      "resp_cou03": "No, did not cough up any blood",
+      "resp_cou04": "Yes, having a blocked and runny nose",
+      "resp_cou05": "Yes, throat feels scratchy and painful when swallowing"
+    },
+    "vitals": {
+      "respiratory_rate": 30,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 120
+    },
+    "ground_truth_redflag": "Yes",
+    "clinical_reason": "SOB and cough in elderly patient correlated with critical tachypnea (30 breaths/min) and low HRV, indicating impending respiratory fatigue or severe COPD/pneumonia exacerbation."
+  },
+  {
+    "id": "case_12_resp_pneumonia_severe",
+    "age": 55,
+    "gender": "Female",
+    "complaints": [
+      "Shortness of Breath",
+      "Fever"
+    ],
+    "details": {
+      "prom_sob": "Yes",
+      "confirm_sob": "Proceed",
+      "prom_fever": "Yes",
+      "confirm_fever": "Selected",
+      "prompt_como01": [
+        "Rheumatoid Arthritis",
+        "Hypertension"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [
+        "Methotrexate 15mg weekly",
+        "Prednisolone 5mg daily",
+        "Ramipril 2.5mg daily"
+      ],
+      "soc_gen01": "Never",
+      "soc_gen02": "No",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "N/A",
+      "soc_gen013": "N/A",
+      "soc_gen021": "N/A",
+      "med_gen011": "Yes",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "Yes",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "fever_01": "About 3 days ago, started feeling very cold and shivering",
+      "fever_02": "3 days",
+      "fever_03": "Yes, I still feel hot and feverish right now",
+      "fever_04": "Yes, measured my temperature at home using a digital thermometer",
+      "fever_041": "38.6 degrees Celsius at the highest",
+      "fever_05": "No, not admitted to any hospital in the last month",
+      "fever_06": "No known contact with anyone who is unwell recently",
+      "fever_07": "No, did not travel overseas in the past month",
+      "fever_08": "No hiking, jungle trekking, or contact with rivers/muddy water",
+      "med_fever01": "Yes, taken paracetamol 1g every 6-8 hours, which brings the fever down slightly",
+      "med_fever02": "No, have not taken any antibiotics in the past 2 weeks",
+      "med_fever03": "No vaccinations received in the last 1 month",
+      "resp_sob01": "It started gradually over the last 2 days and has become very difficult today",
+      "resp_sob02": "2 days",
+      "resp_sob03": "I feel short of breath even when resting or sitting quietly",
+      "resp_sob04": "Yes, severely limited, I can't walk even a short distance without gasping for air",
+      "resp_sob05": "No, not significantly worse when lying flat",
+      "resp_sob06": "No waking up at night",
+      "resp_sob07": "No specific environmental trigger identified",
+      "resp_sob08": "Yes, the pain gets significantly worse when I take a deep breath or cough",
+      "resp_sob09": "No wheezing sound heard"
+    },
+    "vitals": {
+      "respiratory_rate": 26,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 108
+    },
+    "ground_truth_redflag": "Yes",
+    "clinical_reason": "SOB and fever correlated with tachypnea (26 breaths/min) and depressed HRV. Suggests severe pneumonia with systemic inflammatory response."
+  },
+  {
+    "id": "case_13_inf_sepsis",
+    "age": 62,
+    "gender": "Male",
+    "complaints": [
+      "Fever"
+    ],
+    "details": {
+      "prom_fever": "Yes",
+      "confirm_fever": "Selected",
+      "prompt_como01": [
+        "Type 2 Diabetes",
+        "Chronic Liver Disease"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [
+        "Insulin Glargine 20 units nocte",
+        "Metformin 1g BD"
+      ],
+      "soc_gen01": "No",
+      "soc_gen02": "Yes",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "Stopped smoking 8 years ago",
+      "soc_gen013": "10 years of active smoking before quitting",
+      "soc_gen021": "Social drinking, about 1-2 standard drinks on weekends",
+      "med_gen011": "No",
+      "med_gen012": "Yes",
+      "med_gen0121": "No",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "fever_01": "About 3 days ago, started feeling very cold and shivering",
+      "fever_02": "3 days",
+      "fever_03": "Yes, I still feel hot and feverish right now",
+      "fever_04": "Yes, measured my temperature at home using a digital thermometer",
+      "fever_041": "38.6 degrees Celsius at the highest",
+      "fever_05": "No, not admitted to any hospital in the last month",
+      "fever_06": "No known contact with anyone who is unwell recently",
+      "fever_07": "No, did not travel overseas in the past month",
+      "fever_08": "No hiking, jungle trekking, or contact with rivers/muddy water",
+      "med_fever01": "Yes, taken paracetamol 1g every 6-8 hours, which brings the fever down slightly",
+      "med_fever02": "No, have not taken any antibiotics in the past 2 weeks",
+      "med_fever03": "No vaccinations received in the last 1 month"
+    },
+    "vitals": {
+      "respiratory_rate": 26,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 120
+    },
+    "ground_truth_redflag": "Yes",
+    "clinical_reason": "Fever correlated with tachypnea (26 breaths/min) and low HRV. Strong indicators of Sepsis based on SIRS criteria."
+  },
+  {
+    "id": "case_14_inf_peritonitis",
+    "age": 48,
+    "gender": "Female",
+    "complaints": [
+      "Fever",
+      "Abdominal Pain"
+    ],
+    "details": {
+      "prom_fever": "Yes",
+      "confirm_fever": "Selected",
+      "prom_abdopain": "Yes",
+      "confirm_abdopain": "Selected",
+      "prompt_como01": [
+        "End Stage Renal Failure",
+        "Hypertension"
+      ],
+      "prompt_como02": [
+        "Peritoneal Dialysis Catheter"
+      ],
+      "med_gen01": [
+        "Losartan 50mg daily",
+        "Erythropoietin injections monthly"
+      ],
+      "soc_gen01": "Never",
+      "soc_gen02": "No",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "N/A",
+      "soc_gen013": "N/A",
+      "soc_gen021": "N/A",
+      "med_gen011": "Yes",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "fever_01": "About 3 days ago, started feeling very cold and shivering",
+      "fever_02": "3 days",
+      "fever_03": "Yes, I still feel hot and feverish right now",
+      "fever_04": "Yes, measured my temperature at home using a digital thermometer",
+      "fever_041": "38.6 degrees Celsius at the highest",
+      "fever_05": "No, not admitted to any hospital in the last month",
+      "fever_06": "No known contact with anyone who is unwell recently",
+      "fever_07": "No, did not travel overseas in the past month",
+      "fever_08": "No hiking, jungle trekking, or contact with rivers/muddy water",
+      "med_fever01": "Yes, taken paracetamol 1g every 6-8 hours, which brings the fever down slightly",
+      "med_fever02": "No, have not taken any antibiotics in the past 2 weeks",
+      "med_fever03": "No vaccinations received in the last 1 month",
+      "pain_git_02": "Started about 24 hours ago",
+      "pain_git_03": "Yes, still having pain right now",
+      "pain_git_05": "One continuous episode of pain that has gotten worse",
+      "pain_git_01": "All over my stomach (diffuse abdominal pain)",
+      "pain_git_031A": "8 out of 10, very severe pain",
+      "pain_git_04": "Gradual onset, starting all over the abdomen",
+      "pain_git_06": "Severe general soreness, feels rigid and tender all over",
+      "pain_git_07A": "Constant, does not come and go",
+      "git_pain07": "No, started all over the abdomen and remains diffuse",
+      "git_pain08": "Yes, coughing, walking, or moving makes the pain much worse",
+      "git_06": "Yes, abdomen feels very bloated and rigid",
+      "git_pain01": "No back radiation",
+      "git_pain02": "No chest radiation",
+      "git_pain03": "No acid reflux sensation",
+      "git_01": "No difficulty passing stools"
+    },
+    "vitals": {
+      "respiratory_rate": 24,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 115
+    },
+    "ground_truth_redflag": "Yes",
+    "clinical_reason": "Fever and abdominal pain correlated with tachypnea (24 breaths/min) and depressed HRV. Highly concerning for severe intra-abdominal infection or peritonitis."
+  },
+  {
+    "id": "case_15_inf_shock",
+    "age": 60,
+    "gender": "Male",
+    "complaints": [
+      "Diarrhoea",
+      "Fever"
+    ],
+    "details": {
+      "prom_diarrhoea": "Yes",
+      "confirm_diarrhoea": "Proceed",
+      "prom_fever": "Yes",
+      "confirm_fever": "Selected",
+      "prompt_como01": [
+        "Ischaemic Heart Disease",
+        "Hypercholesterolaemia"
+      ],
+      "prompt_como02": [
+        "Coronary CABG"
+      ],
+      "med_gen01": [
+        "Aspirin 75mg daily",
+        "Simvastatin 40mg daily"
+      ],
+      "soc_gen01": "No",
+      "soc_gen02": "No",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "Stopped smoking 8 years ago",
+      "soc_gen013": "10 years of active smoking before quitting",
+      "soc_gen021": "N/A",
+      "med_gen011": "No",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "Yes",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "fever_01": "About 3 days ago, started feeling very cold and shivering",
+      "fever_02": "3 days",
+      "fever_03": "Yes, I still feel hot and feverish right now",
+      "fever_04": "Yes, measured my temperature at home using a digital thermometer",
+      "fever_041": "38.6 degrees Celsius at the highest",
+      "fever_05": "No, not admitted to any hospital in the last month",
+      "fever_06": "No known contact with anyone who is unwell recently",
+      "fever_07": "No, did not travel overseas in the past month",
+      "fever_08": "No hiking, jungle trekking, or contact with rivers/muddy water",
+      "med_fever01": "Yes, taken paracetamol 1g every 6-8 hours, which brings the fever down slightly",
+      "med_fever02": "No, have not taken any antibiotics in the past 2 weeks",
+      "med_fever03": "No vaccinations received in the last 1 month",
+      "git_dia01": "Passed loose, watery stools 5 times today",
+      "git_dia02": "2 days",
+      "git_dia03": "Yes, started after eating seafood at a night market",
+      "git_dia021": "No, family ate the same but they are completely fine"
+    },
+    "vitals": {
+      "respiratory_rate": 23,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 115
+    },
+    "ground_truth_redflag": "Yes",
+    "clinical_reason": "Fever and diarrhea correlated with tachypnea (23 breaths/min) and critically low HRV (22) suggesting systemic hypoperfusion/shock."
+  },
+  {
+    "id": "case_16_inf_meningitis_conf",
+    "age": 72,
+    "gender": "Female",
+    "complaints": [
+      "Fever",
+      "Body Weakness"
+    ],
+    "details": {
+      "prom_fever": "Yes",
+      "confirm_fever": "Selected",
+      "neuro_02": "Yes",
+      "prompt_como01": [
+        "Dementia",
+        "Hypertension"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [
+        "Donepezil 10mg daily",
+        "Amlodipine 5mg daily"
+      ],
+      "soc_gen01": "Never",
+      "soc_gen02": "No",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "N/A",
+      "soc_gen013": "N/A",
+      "soc_gen021": "N/A",
+      "med_gen011": "Yes",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "fever_01": "About 3 days ago, started feeling very cold and shivering",
+      "fever_02": "3 days",
+      "fever_03": "Yes, I still feel hot and feverish right now",
+      "fever_04": "Yes, measured my temperature at home using a digital thermometer",
+      "fever_041": "38.6 degrees Celsius at the highest",
+      "fever_05": "No, not admitted to any hospital in the last month",
+      "fever_06": "No known contact with anyone who is unwell recently",
+      "fever_07": "No, did not travel overseas in the past month",
+      "fever_08": "No hiking, jungle trekking, or contact with rivers/muddy water",
+      "med_fever01": "Yes, taken paracetamol 1g every 6-8 hours, which brings the fever down slightly",
+      "med_fever02": "No, have not taken any antibiotics in the past 2 weeks",
+      "med_fever03": "No vaccinations received in the last 1 month"
+    },
+    "vitals": {
+      "respiratory_rate": 24,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 115
+    },
+    "ground_truth_redflag": "Yes",
+    "clinical_reason": "Fever accompanied by acute confusion in an elderly patient, correlated with tachypnea (24 breaths/min). Suspicious for central nervous system infection (meningitis/encephalitis)."
+  },
+  {
+    "id": "case_17_inf_meningitis_neck",
+    "age": 28,
+    "gender": "Male",
+    "complaints": [
+      "Fever",
+      "Headache"
+    ],
+    "details": {
+      "prom_fever": "Yes",
+      "confirm_fever": "Selected",
+      "prom_headache": "Yes",
+      "confirm_headache": "Selected",
+      "neuro_01": "Yes",
+      "prompt_como01": [
+        "Eczema"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [
+        "Hydrocortisone Cream PRN"
+      ],
+      "soc_gen01": "No",
+      "soc_gen02": "Yes",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "Stopped smoking 8 years ago",
+      "soc_gen013": "10 years of active smoking before quitting",
+      "soc_gen021": "Social drinking, about 1-2 standard drinks on weekends",
+      "med_gen011": "No",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "Yes",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "fever_01": "About 3 days ago, started feeling very cold and shivering",
+      "fever_02": "3 days",
+      "fever_03": "Yes, I still feel hot and feverish right now",
+      "fever_04": "Yes, measured my temperature at home using a digital thermometer",
+      "fever_041": "38.6 degrees Celsius at the highest",
+      "fever_05": "No, not admitted to any hospital in the last month",
+      "fever_06": "No known contact with anyone who is unwell recently",
+      "fever_07": "No, did not travel overseas in the past month",
+      "fever_08": "No hiking, jungle trekking, or contact with rivers/muddy water",
+      "med_fever01": "Yes, taken paracetamol 1g every 6-8 hours, which brings the fever down slightly",
+      "med_fever02": "No, have not taken any antibiotics in the past 2 weeks",
+      "med_fever03": "No vaccinations received in the last 1 month",
+      "neuro_head01": "All over my head, but worse at the back and temples",
+      "neuro_head02": "1 day",
+      "neuro_head04": "It is constantly present, does not go away",
+      "neuro_head03": "Started gradually and has worsened",
+      "neuro_head05": "7 out of 10, severe headache",
+      "neuro_head08": "Severe throbbing and pressure sensation",
+      "neuro_head12": "Yes, bright light makes the pain much worse",
+      "neuro_head13": "Yes, loud noises make it worse"
+    },
+    "vitals": {
+      "respiratory_rate": 20,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 108
+    },
+    "ground_truth_redflag": "Yes",
+    "clinical_reason": "Fever, headache, and neck stiffness correlated with borderline vitals (RR=20, HRV=28). Classical presentation of meningitis."
+  },
+  {
+    "id": "case_18_inf_dengue_hem",
+    "age": 32,
+    "gender": "Female",
+    "complaints": [
+      "Fever",
+      "Bleeding"
+    ],
+    "details": {
+      "prom_fever": "Yes",
+      "confirm_fever": "Selected",
+      "prom_bleeding": "Yes",
+      "confirm_bleeding": "Proceed",
+      "bleed_01": "Mouth or gums",
+      "prompt_como01": [
+        "None"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [
+        "Paracetamol 1g QDS PRN"
+      ],
+      "soc_gen01": "Never",
+      "soc_gen02": "No",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "N/A",
+      "soc_gen013": "N/A",
+      "soc_gen021": "N/A",
+      "med_gen011": "No",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "fever_01": "About 3 days ago, started feeling very cold and shivering",
+      "fever_02": "3 days",
+      "fever_03": "Yes, I still feel hot and feverish right now",
+      "fever_04": "Yes, measured my temperature at home using a digital thermometer",
+      "fever_041": "38.6 degrees Celsius at the highest",
+      "fever_05": "No, not admitted to any hospital in the last month",
+      "fever_06": "No known contact with anyone who is unwell recently",
+      "fever_07": "No, did not travel overseas in the past month",
+      "fever_08": "No hiking, jungle trekking, or contact with rivers/muddy water",
+      "med_fever01": "Yes, taken paracetamol 1g every 6-8 hours, which brings the fever down slightly",
+      "med_fever02": "No, have not taken any antibiotics in the past 2 weeks",
+      "med_fever03": "No vaccinations received in the last 1 month",
+      "bleed_02": "Started spontaneously without any trauma or injury",
+      "bleed_03": "Started yesterday afternoon",
+      "bleed_04": "Still slowly bleeding, has not stopped completely"
+    },
+    "vitals": {
+      "respiratory_rate": 24,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 120
+    },
+    "ground_truth_redflag": "Yes",
+    "clinical_reason": "Fever accompanied by mucosal bleeding (mouth/gums) correlated with tachypnea (24 breaths/min) and low HRV. Red flag for hemorrhagic fever."
+  },
+  {
+    "id": "case_19_neuro_syncope",
+    "age": 50,
+    "gender": "Male",
+    "complaints": [
+      "Fainting / Blackout"
+    ],
+    "details": {
+      "prom_syncope": "Yes",
+      "confirm_syncope": "Proceed",
+      "neuro_sync04": "Yes",
+      "prompt_como01": [
+        "Atrial Fibrillation",
+        "Hypertension"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [
+        "Apixaban 5mg BD",
+        "Lisinopril 20mg daily"
+      ],
+      "soc_gen01": "No",
+      "soc_gen02": "Yes",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "Stopped smoking 8 years ago",
+      "soc_gen013": "10 years of active smoking before quitting",
+      "soc_gen021": "Social drinking, about 1-2 standard drinks on weekends",
+      "med_gen011": "Yes",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "Yes",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "neuro_sync01": "Today, about 2 hours ago",
+      "neuro_sync02": "Yes, completely blacked out and was unresponsive for about 1 minute",
+      "neuro_sync021": "About 1-2 minutes, according to my family member",
+      "neuro_sync03": "I was standing up talking to my daughter when it happened"
+    },
+    "vitals": {
+      "respiratory_rate": 18,
+      "heart_beat_rhythm": "Irregular",
+      "heart_rate": 52
+    },
+    "ground_truth_redflag": "Yes",
+    "clinical_reason": "Sudden fainting spell correlated with irregular rhythm and low HRV, pointing to a cardiogenic cause of syncope."
+  },
+  {
+    "id": "case_20_neuro_stroke_balance",
+    "age": 66,
+    "gender": "Male",
+    "complaints": [
+      "Body Weakness"
+    ],
+    "details": {
+      "prom_weakness": "Yes",
+      "confirm_weakness": "Proceed",
+      "neuro_weak07": "Yes",
+      "prompt_como01": [
+        "Carotid Artery Stenosis",
+        "Hypercholesterolaemia"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [
+        "Atorvastatin 40mg daily",
+        "Aspirin 75mg daily"
+      ],
+      "soc_gen01": "Yes",
+      "soc_gen02": "No",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "15 cigarettes per day",
+      "soc_gen012": "N/A",
+      "soc_gen013": "25 years of smoking history",
+      "soc_gen021": "N/A",
+      "med_gen011": "No",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "Yes",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "neuro_weak01": "Weakness affecting my right arm and right leg",
+      "neuro_weak02": "Yes, started suddenly over about 5 minutes",
+      "neuro_weak03": "Today",
+      "neuro_weak06": "Yes, my speech is slurred and I have difficulty finding words",
+      "neuro_weak08": "Yes, the right side of my face is droopy and weak"
+    },
+    "vitals": {
+      "respiratory_rate": 20,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 108
+    },
+    "ground_truth_redflag": "Yes",
+    "clinical_reason": "Sudden loss of balance and body weakness in an elderly patient, correlated with borderline respiratory rate (20) and low HRV (25). Indicates acute stroke or neurological emergency."
+  },
+  {
+    "id": "case_21_neuro_stroke_weakness",
+    "age": 74,
+    "gender": "Female",
+    "complaints": [
+      "Body Weakness"
+    ],
+    "details": {
+      "prom_weakness": "Yes",
+      "confirm_weakness": "Proceed",
+      "neuro_weak012": "Right side",
+      "prompt_como01": [
+        "Hypertension",
+        "Atrial Fibrillation"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [
+        "Digoxin 125mcg daily",
+        "Diltiazem 120mg daily"
+      ],
+      "soc_gen01": "Never",
+      "soc_gen02": "No",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "N/A",
+      "soc_gen013": "N/A",
+      "soc_gen021": "N/A",
+      "med_gen011": "Yes",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "neuro_weak01": "Weakness affecting my right arm and right leg",
+      "neuro_weak02": "Yes, started suddenly over about 5 minutes",
+      "neuro_weak03": "Today",
+      "neuro_weak06": "Yes, my speech is slurred and I have difficulty finding words",
+      "neuro_weak07": "Yes, I cannot walk or stand without falling to the right",
+      "neuro_weak08": "Yes, the right side of my face is droopy and weak"
+    },
+    "vitals": {
+      "respiratory_rate": 19,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 108
+    },
+    "ground_truth_redflag": "Yes",
+    "clinical_reason": "Unilateral limb weakness (right side) in elderly patient, correlated with depressed HRV (26). Suggestive of acute ischemic or hemorrhagic stroke."
+  },
+  {
+    "id": "case_22_neuro_stroke_droop",
+    "age": 63,
+    "gender": "Male",
+    "complaints": [
+      "Body Weakness"
+    ],
+    "details": {
+      "prom_weakness": "Yes",
+      "confirm_weakness": "Proceed",
+      "neuro_weak06": "Yes",
+      "neuro_weak08": "Yes",
+      "prompt_como01": [
+        "Hypertension",
+        "Diabetes"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [
+        "Amlodipine 10mg daily",
+        "Gliclazide 60mg daily"
+      ],
+      "soc_gen01": "Yes",
+      "soc_gen02": "Yes",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "15 cigarettes per day",
+      "soc_gen012": "N/A",
+      "soc_gen013": "25 years of smoking history",
+      "soc_gen021": "Social drinking, about 1-2 standard drinks on weekends",
+      "med_gen011": "Yes",
+      "med_gen012": "Yes",
+      "med_gen0121": "No",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "neuro_weak01": "Weakness affecting my right arm and right leg",
+      "neuro_weak02": "Yes, started suddenly over about 5 minutes",
+      "neuro_weak03": "Today",
+      "neuro_weak07": "Yes, I cannot walk or stand without falling to the right"
+    },
+    "vitals": {
+      "respiratory_rate": 18,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 108
+    },
+    "ground_truth_redflag": "Yes",
+    "clinical_reason": "Speech difficulty combined with facial droop and depressed HRV (30). Classical presentation of acute stroke."
+  },
+  {
+    "id": "case_23_neuro_headache_severe",
+    "age": 51,
+    "gender": "Female",
+    "complaints": [
+      "Headache"
+    ],
+    "details": {
+      "prom_headache": "Yes",
+      "confirm_headache": "Selected",
+      "neuro_02": "Yes",
+      "prompt_como01": [
+        "Polycystic Kidney Disease",
+        "Hypertension"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [
+        "Losartan 100mg daily",
+        "Amlodipine 10mg daily"
+      ],
+      "soc_gen01": "Never",
+      "soc_gen02": "No",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "N/A",
+      "soc_gen013": "N/A",
+      "soc_gen021": "N/A",
+      "med_gen011": "Yes",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "neuro_head01": "All over my head, but worse at the back and temples",
+      "neuro_head02": "1 day",
+      "neuro_head04": "It is constantly present, does not go away",
+      "neuro_head03": "It started extremely suddenly, like a clap of thunder",
+      "neuro_head05": "10 out of 10, worst headache I've ever had",
+      "neuro_head08": "Severe throbbing and explosive pressure sensation",
+      "neuro_head12": "Yes, bright light makes the pain much worse",
+      "neuro_head13": "Yes, loud noises make it worse"
+    },
+    "vitals": {
+      "respiratory_rate": 22,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 115
+    },
+    "ground_truth_redflag": "Yes",
+    "clinical_reason": "Headache accompanied by acute confusion, correlated with tachypnea (22 breaths/min) and low HRV (24). Suspicious for intracranial hemorrhage or severe encephalopathy."
+  },
+  {
+    "id": "case_24_neuro_headache_neck",
+    "age": 42,
+    "gender": "Male",
+    "complaints": [
+      "Headache"
+    ],
+    "details": {
+      "prom_headache": "Yes",
+      "confirm_headache": "Selected",
+      "neuro_01": "Yes",
+      "prompt_como01": [
+        "None"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [],
+      "soc_gen01": "No",
+      "soc_gen02": "Yes",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "Lives alone",
+      "soc_gen011": "N/A",
+      "soc_gen012": "Stopped smoking 8 years ago",
+      "soc_gen013": "10 years of active smoking before quitting",
+      "soc_gen021": "Social drinking, about 1-2 standard drinks on weekends",
+      "med_gen011": "No",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "neuro_head01": "All over my head, but worse at the back and temples",
+      "neuro_head02": "1 day",
+      "neuro_head04": "It is constantly present, does not go away",
+      "neuro_head03": "Started gradually and has worsened",
+      "neuro_head05": "7 out of 10, severe headache",
+      "neuro_head08": "Severe throbbing and pressure sensation",
+      "neuro_head12": "Yes, bright light makes the pain much worse",
+      "neuro_head13": "Yes, loud noises make it worse"
+    },
+    "vitals": {
+      "respiratory_rate": 18,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 108
+    },
+    "ground_truth_redflag": "Yes",
+    "clinical_reason": "Headache with neck stiffness. Concerning for subarachnoid hemorrhage or meningitis."
+  },
+  {
+    "id": "case_25_neuro_dizziness_card",
+    "age": 67,
+    "gender": "Female",
+    "complaints": [
+      "Dizziness",
+      "Chest Pain"
+    ],
+    "details": {
+      "prom_dizziness": "Yes",
+      "confirm_dizziness": "Proceed",
+      "prom_cardpain": "Yes",
+      "confirm_cardpain": "Proceed",
+      "prompt_como01": [
+        "Ischaemic Heart Disease",
+        "Heart Failure"
+      ],
+      "prompt_como02": [
+        "Pacemaker"
+      ],
+      "med_gen01": [
+        "Carvedilol 6.25mg BD",
+        "Ramipril 5mg daily",
+        "Frusemide 20mg daily"
+      ],
+      "soc_gen01": "Never",
+      "soc_gen02": "No",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "N/A",
+      "soc_gen013": "N/A",
+      "soc_gen021": "N/A",
+      "med_gen011": "Yes",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "pain_card_02": "Started about 2 hours ago",
+      "pain_card_03": "Yes, the pain is active and severe right now",
+      "pain_card_031A": "8 out of 10, very intense pain",
+      "pain_card_04": "Started suddenly while I was resting",
+      "pain_card_05": "One continuous episode, has not stopped",
+      "pain_card_01": "Directly in the center of my chest, behind the breastbone",
+      "pain_card_06": "Crushing, heavy pressure like someone is standing on my chest",
+      "pain_card_07A": "Constant and does not get better",
+      "card_pain03B": "No jaw radiation",
+      "card_pain05B": "No arm radiation",
+      "card_pain09B": "No, pressing on my chest does not make it worse",
+      "card_pain10B": "Yes, feeling nauseous and sick",
+      "card_pain11B": "Yes, sweating heavily and feeling cold",
+      "card_pain01": "I was sitting on the sofa watching television",
+      "card_pain02B": "No back radiation",
+      "card_pain04B": "No neck radiation",
+      "card_pain06B": "No, sitting forward does not change the pain",
+      "card_pain07B": "No, resting has not improved it",
+      "card_pain08B": "Yes, walking or moving makes it feel much worse",
+      "neuro_dizz02": "Started this morning",
+      "neuro_dizz01": "Lightheadedness and feeling like I might faint",
+      "neuro_dizz03": "Suddenly when the chest discomfort/palpitations started",
+      "neuro_dizz05": "Present all the time when standing or walking"
+    },
+    "vitals": {
+      "respiratory_rate": 21,
+      "heart_beat_rhythm": "Irregular",
+      "heart_rate": 115
+    },
+    "ground_truth_redflag": "Yes",
+    "clinical_reason": "Dizziness and chest pain accompanied by irregular rhythm and low HRV (20). Highly concerning for acute coronary event or tachyarrhythmia."
+  },
+  {
+    "id": "case_26_rash_normal_vitals",
+    "age": 24,
+    "gender": "Female",
+    "complaints": [
+      "Skin Problem"
+    ],
+    "details": {
+      "prom_skin": "Yes",
+      "confirm_skin": "Proceed",
+      "prompt_como01": [
+        "Asthma"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [
+        "Ventolin Inhaler PRN"
+      ],
+      "soc_gen01": "Never",
+      "soc_gen02": "No",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "N/A",
+      "soc_gen013": "N/A",
+      "soc_gen021": "N/A",
+      "med_gen011": "No",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "skin_01": "Redness, swelling, and warm skin on my leg",
+      "skin_02": "Left lower leg and calf",
+      "skin_03": "Started 2 days ago and has been spreading"
+    },
+    "vitals": {
+      "respiratory_rate": 16,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 72
+    },
+    "ground_truth_redflag": "No",
+    "clinical_reason": "Patient has a minor skin problem (rash). Vitals signs are completely normal and stable."
+  },
+  {
+    "id": "case_27_earache_normal_vitals",
+    "age": 31,
+    "gender": "Male",
+    "complaints": [
+      "ENT Problem"
+    ],
+    "details": {
+      "prom_ent": "Yes",
+      "confirm_ent": "Proceed",
+      "prompt_como01": [
+        "Gastro-oesophageal Reflux Disease"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [
+        "Omeprazole 20mg daily"
+      ],
+      "soc_gen01": "No",
+      "soc_gen02": "Yes",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "Lives alone",
+      "soc_gen011": "N/A",
+      "soc_gen012": "Stopped smoking 8 years ago",
+      "soc_gen013": "10 years of active smoking before quitting",
+      "soc_gen021": "Social drinking, about 1-2 standard drinks on weekends",
+      "med_gen011": "No",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "ent_00": "Ear problem",
+      "ent_ear01": "Sharp pain inside the ear and blocked sensation",
+      "ent_ear02": "2 days ago",
+      "ent_ear03": "Right ear"
+    },
+    "vitals": {
+      "respiratory_rate": 15,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 104
+    },
+    "ground_truth_redflag": "No",
+    "clinical_reason": "Patient has minor ear pain (ENT problem). Vitals are stable, with no indicators of systemic instability or red flag criteria."
+  },
+  {
+    "id": "case_28_cut_pain_normal",
+    "age": 19,
+    "gender": "Male",
+    "complaints": [
+      "Injury"
+    ],
+    "details": {
+      "prom_injury": "Yes",
+      "confirm_injury": "Proceed",
+      "prompt_como01": [
+        "None"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [],
+      "soc_gen01": "Never",
+      "soc_gen02": "No",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "N/A",
+      "soc_gen013": "N/A",
+      "soc_gen021": "N/A",
+      "med_gen011": "No",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "inj_01": "Right ankle and foot area",
+      "inj_04": "Happened yesterday evening",
+      "inj_05": "Slipped on a wet patch of grass and twisted my ankle",
+      "inj_02": "Yes, mild dull ache",
+      "inj_03": "3 out of 10 pain score",
+      "inj_region02": "Yes, able to stand and walk normally"
+    },
+    "vitals": {
+      "respiratory_rate": 16,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 70
+    },
+    "ground_truth_redflag": "No",
+    "clinical_reason": "Minor laceration on finger. Vitals are completely stable and normal."
+  },
+  {
+    "id": "case_29_sorethroat_mild_tachypnea",
+    "age": 22,
+    "gender": "Female",
+    "complaints": [
+      "ENT Problem"
+    ],
+    "details": {
+      "prom_ent": "Yes",
+      "confirm_ent": "Proceed",
+      "prompt_como01": [
+        "Acne"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [
+        "Doxycycline 100mg daily"
+      ],
+      "soc_gen01": "Never",
+      "soc_gen02": "No",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "N/A",
+      "soc_gen013": "N/A",
+      "soc_gen021": "N/A",
+      "med_gen011": "No",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "ent_00": "Ear problem",
+      "ent_ear01": "Sharp pain inside the ear and blocked sensation",
+      "ent_ear02": "2 days ago",
+      "ent_ear03": "Right ear"
+    },
+    "vitals": {
+      "respiratory_rate": 21,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 72
+    },
+    "ground_truth_redflag": "No",
+    "clinical_reason": "Mild sore throat and throat irritation. Mild elevation in respiratory rate (21) does not correlate with severe distress or red flags."
+  },
+  {
+    "id": "case_30_bloating_normal_vitals",
+    "age": 45,
+    "gender": "Male",
+    "complaints": [
+      "Abdominal Pain"
+    ],
+    "details": {
+      "prom_abdopain": "Yes",
+      "confirm_abdopain": "Selected",
+      "prompt_como01": [
+        "Irritable Bowel Syndrome"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [
+        "Mebeverine 135mg TDS PRN"
+      ],
+      "soc_gen01": "No",
+      "soc_gen02": "Yes",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "Stopped smoking 8 years ago",
+      "soc_gen013": "10 years of active smoking before quitting",
+      "soc_gen021": "Social drinking, about 1-2 standard drinks on weekends",
+      "med_gen011": "No",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "pain_git_02": "Started about 24 hours ago",
+      "pain_git_03": "Yes, still having pain right now",
+      "pain_git_05": "One continuous episode of pain that has gotten worse",
+      "pain_git_01": "Across my lower stomach, mostly on the left side",
+      "pain_git_031A": "3 out of 10, mild crampy discomfort",
+      "pain_git_04": "Gradual onset, comes and goes",
+      "pain_git_06": "Dull crampy ache, feels like gas bloating",
+      "pain_git_07A": "Comes and goes (colicky)",
+      "git_pain07": "No, remains generalized in the lower abdomen",
+      "git_pain08": "No, coughing or moving does not make it worse",
+      "git_06": "Yes, abdomen feels slightly bloated",
+      "git_pain01": "No back radiation",
+      "git_pain02": "No chest radiation",
+      "git_pain03": "No acid reflux sensation",
+      "git_01": "No difficulty passing stools"
+    },
+    "vitals": {
+      "respiratory_rate": 18,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 75
+    },
+    "ground_truth_redflag": "No",
+    "clinical_reason": "Patient complains of abdominal bloating and mild fullness. Vitals are stable with no signs of severe infection or acute abdomen."
+  },
+  {
+    "id": "case_31_drycough_mild_tachypnea",
+    "age": 38,
+    "gender": "Male",
+    "complaints": [
+      "Cough"
+    ],
+    "details": {
+      "prom_cough": "Yes",
+      "confirm_cough": "Proceed",
+      "prompt_como01": [
+        "Hypertension"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [
+        "Lisinopril 10mg daily"
+      ],
+      "soc_gen01": "Yes",
+      "soc_gen02": "No",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "15 cigarettes per day",
+      "soc_gen012": "N/A",
+      "soc_gen013": "25 years of smoking history",
+      "soc_gen021": "N/A",
+      "med_gen011": "Yes",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "resp_cou01": "Coughing for about 4 days now",
+      "resp_cou02": "Yes, coughing up thick phlegm",
+      "resp_cou021": "Yellowish-green coloured thick phlegm",
+      "resp_cou022": "Yes, coughing up much more phlegm than usual",
+      "resp_cou023": "Yes, it changed from clear to dark yellow-green",
+      "resp_cou03": "No, did not cough up any blood",
+      "resp_cou04": "Yes, having a blocked and runny nose",
+      "resp_cou05": "Yes, throat feels scratchy and painful when swallowing"
+    },
+    "vitals": {
+      "respiratory_rate": 22,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 74
+    },
+    "ground_truth_redflag": "No",
+    "clinical_reason": "Dry cough for 3 days. Elevated respiratory rate (22) is mild and expected with a respiratory tract infection, without correlating shortness of breath."
+  },
+  {
+    "id": "case_32_uti_normal_vitals",
+    "age": 29,
+    "gender": "Female",
+    "complaints": [
+      "Urinary Problems"
+    ],
+    "details": {
+      "prom_gu": "Yes",
+      "confirm_gu": "Proceed",
+      "prompt_como01": [
+        "Recurrent UTIs"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [
+        "Hiprex 1g BD"
+      ],
+      "soc_gen01": "Never",
+      "soc_gen02": "No",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "N/A",
+      "soc_gen013": "N/A",
+      "soc_gen021": "N/A",
+      "med_gen011": "No",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "gu_01": "Yes, able to pass urine but with difficulty",
+      "gu_02": "Yes, severe burning and stinging pain when passing urine",
+      "gu_021": "3 days",
+      "gu_03": "Passing urine much more frequently, but only small amounts each time",
+      "gu_04": "Yes, looks darker and cloudy",
+      "gu_05": "Yes, feel a constant urge to go but cannot empty fully",
+      "gu_06": "No blood seen in the urine",
+      "gu_07": "Yes, dull ache on the lower back and sides"
+    },
+    "vitals": {
+      "respiratory_rate": 16,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 72
+    },
+    "ground_truth_redflag": "No",
+    "clinical_reason": "Urinary burning/dysuria. Vitals are stable, without high fever or systemic signs of upper tract infection."
+  },
+  {
+    "id": "case_33_nosebleed_normal_vitals",
+    "age": 35,
+    "gender": "Female",
+    "complaints": [
+      "Bleeding"
+    ],
+    "details": {
+      "prom_bleeding": "Yes",
+      "confirm_bleeding": "Proceed",
+      "bleed_01": "Nosebleed",
+      "prompt_como01": [
+        "Allergic Rhinitis"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [
+        "Flixonase Nasal Spray 1 spray BD"
+      ],
+      "soc_gen01": "Never",
+      "soc_gen02": "No",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "N/A",
+      "soc_gen013": "N/A",
+      "soc_gen021": "N/A",
+      "med_gen011": "No",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "bleed_02": "Started spontaneously without any trauma or injury",
+      "bleed_03": "Started yesterday afternoon",
+      "bleed_04": "Still slowly bleeding, has not stopped completely"
+    },
+    "vitals": {
+      "respiratory_rate": 18,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 73
+    },
+    "ground_truth_redflag": "No",
+    "clinical_reason": "Minor nosebleed, already resolved. Vitals are completely normal and stable."
+  },
+  {
+    "id": "case_34_backache_normal_vitals",
+    "age": 50,
+    "gender": "Male",
+    "complaints": [
+      "Musculoskeletal"
+    ],
+    "details": {
+      "prom_msk": "Yes",
+      "confirm_msk": "Proceed",
+      "prompt_como01": [
+        "Lumbar Spondylosis"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [
+        "Paracetamol 1g TDS PRN",
+        "Ibuprofen 400mg TDS PRN"
+      ],
+      "soc_gen01": "No",
+      "soc_gen02": "No",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "Stopped smoking 8 years ago",
+      "soc_gen013": "10 years of active smoking before quitting",
+      "soc_gen021": "N/A",
+      "med_gen011": "No",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "msk_01": "Dull ache and stiffness in my lower back",
+      "msk_02": "Lower back / lumbar region",
+      "msk_03": "Started 3 days ago after lifting heavy boxes"
+    },
+    "vitals": {
+      "respiratory_rate": 17,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 102
+    },
+    "ground_truth_redflag": "No",
+    "clinical_reason": "Mild backache from heavy lifting. Vitals are normal and stable."
+  },
+  {
+    "id": "case_35_diarrhea_normal_vitals",
+    "age": 27,
+    "gender": "Female",
+    "complaints": [
+      "Diarrhoea"
+    ],
+    "details": {
+      "prom_diarrhoea": "Yes",
+      "confirm_diarrhoea": "Proceed",
+      "prompt_como01": [
+        "None"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [],
+      "soc_gen01": "Never",
+      "soc_gen02": "No",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "N/A",
+      "soc_gen013": "N/A",
+      "soc_gen021": "N/A",
+      "med_gen011": "No",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "git_dia01": "Passed loose stool twice today",
+      "git_dia02": "1 day",
+      "git_dia03": "Yes, started after eating seafood at a night market",
+      "git_dia021": "No, family ate the same but they are completely fine"
+    },
+    "vitals": {
+      "respiratory_rate": 16,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 74
+    },
+    "ground_truth_redflag": "No",
+    "clinical_reason": "Mild diarrhea (once). Vitals are stable, lacking correlating fever or signs of severe dehydration."
+  },
+  {
+    "id": "case_36_eyeitch_normal_vitals",
+    "age": 23,
+    "gender": "Male",
+    "complaints": [
+      "Eye Problem"
+    ],
+    "details": {
+      "prom_eye": "Yes",
+      "confirm_eye": "Proceed",
+      "prompt_como01": [
+        "Allergies (Dust)"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [
+        "Olopatadine Eye Drops PRN"
+      ],
+      "soc_gen01": "Never",
+      "soc_gen02": "No",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "N/A",
+      "soc_gen013": "N/A",
+      "soc_gen021": "N/A",
+      "med_gen011": "No",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "eye_01": "Redness, moderate pain, and blurry vision in my eye",
+      "eye_02": "Right eye",
+      "eye_03": "Started yesterday evening",
+      "eye_04": "Gradually over a few hours"
+    },
+    "vitals": {
+      "respiratory_rate": 15,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 72
+    },
+    "ground_truth_redflag": "No",
+    "clinical_reason": "Mild eye itchiness, likely allergic conjunctivitis. Vitals are completely normal and non-urgent."
+  },
+  {
+    "id": "case_37_fever_normal_vitals",
+    "age": 30,
+    "gender": "Female",
+    "complaints": [
+      "Fever"
+    ],
+    "details": {
+      "prom_fever": "Yes",
+      "confirm_fever": "Selected",
+      "prompt_como01": [
+        "None"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [
+        "Panadol 1g TDS PRN"
+      ],
+      "soc_gen01": "Never",
+      "soc_gen02": "No",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "N/A",
+      "soc_gen013": "N/A",
+      "soc_gen021": "N/A",
+      "med_gen011": "No",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "fever_01": "About 3 days ago, started feeling very cold and shivering",
+      "fever_02": "3 days",
+      "fever_03": "Yes, I still feel hot and feverish right now",
+      "fever_04": "Yes, measured my temperature at home using a digital thermometer",
+      "fever_041": "38.6 degrees Celsius at the highest",
+      "fever_05": "No, not admitted to any hospital in the last month",
+      "fever_06": "No known contact with anyone who is unwell recently",
+      "fever_07": "No, did not travel overseas in the past month",
+      "fever_08": "No hiking, jungle trekking, or contact with rivers/muddy water",
+      "med_fever01": "Yes, taken paracetamol 1g every 6-8 hours, which brings the fever down slightly",
+      "med_fever02": "No, have not taken any antibiotics in the past 2 weeks",
+      "med_fever03": "No vaccinations received in the last 1 month"
+    },
+    "vitals": {
+      "respiratory_rate": 16,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 74
+    },
+    "ground_truth_redflag": "No",
+    "clinical_reason": "Mild fever (37.8C). Vitals are stable (RR=16, HRV=53) with no signs of severe infection or distress."
+  },
+  {
+    "id": "case_38_cough_normal",
+    "age": 28,
+    "gender": "Male",
+    "complaints": [
+      "Cough"
+    ],
+    "details": {
+      "prom_cough": "Yes",
+      "confirm_cough": "Proceed",
+      "prompt_como01": [
+        "None"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [],
+      "soc_gen01": "Never",
+      "soc_gen02": "No",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "N/A",
+      "soc_gen013": "N/A",
+      "soc_gen021": "N/A",
+      "med_gen011": "No",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "resp_cou01": "Coughing for about 4 days now",
+      "resp_cou02": "Yes, coughing up thick phlegm",
+      "resp_cou021": "Yellowish-green coloured thick phlegm",
+      "resp_cou022": "Yes, coughing up much more phlegm than usual",
+      "resp_cou023": "Yes, it changed from clear to dark yellow-green",
+      "resp_cou03": "No, did not cough up any blood",
+      "resp_cou04": "Yes, having a blocked and runny nose",
+      "resp_cou05": "Yes, throat feels scratchy and painful when swallowing"
+    },
+    "vitals": {
+      "respiratory_rate": 14,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 67
+    },
+    "ground_truth_redflag": "No",
+    "clinical_reason": "Mild cough with completely normal and stable vital signs."
+  },
+  {
+    "id": "case_39_sorethroat_normal",
+    "age": 18,
+    "gender": "Female",
+    "complaints": [
+      "ENT Problem"
+    ],
+    "details": {
+      "prom_ent": "Yes",
+      "confirm_ent": "Proceed",
+      "prompt_como01": [
+        "None"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [],
+      "soc_gen01": "Never",
+      "soc_gen02": "No",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "N/A",
+      "soc_gen013": "N/A",
+      "soc_gen021": "N/A",
+      "med_gen011": "No",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "ent_00": "Ear problem",
+      "ent_ear01": "Sharp pain inside the ear and blocked sensation",
+      "ent_ear02": "2 days ago",
+      "ent_ear03": "Right ear"
+    },
+    "vitals": {
+      "respiratory_rate": 12,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 66
+    },
+    "ground_truth_redflag": "No",
+    "clinical_reason": "Sore throat with stable, normal vital signs. Typical minor viral pharyngitis."
+  },
+  {
+    "id": "case_40_sprain_normal",
+    "age": 33,
+    "gender": "Male",
+    "complaints": [
+      "Injury"
+    ],
+    "details": {
+      "prom_injury": "Yes",
+      "confirm_injury": "Proceed",
+      "prompt_como01": [
+        "None"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [],
+      "soc_gen01": "Never",
+      "soc_gen02": "No",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "N/A",
+      "soc_gen013": "N/A",
+      "soc_gen021": "N/A",
+      "med_gen011": "No",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "inj_01": "Right ankle and foot area",
+      "inj_04": "Happened yesterday evening",
+      "inj_05": "Slipped on a wet patch of grass and twisted my ankle",
+      "inj_02": "Yes, mild dull ache",
+      "inj_03": "3 out of 10 pain score",
+      "inj_region02": "Yes, can bear some weight but limping"
+    },
+    "vitals": {
+      "respiratory_rate": 15,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 69
+    },
+    "ground_truth_redflag": "No",
+    "clinical_reason": "Minor ankle sprain. Stable with normal respiratory rate."
+  },
+  {
+    "id": "case_41_bloating_normal",
+    "age": 41,
+    "gender": "Female",
+    "complaints": [
+      "Abdominal Pain"
+    ],
+    "details": {
+      "prom_abdopain": "Yes",
+      "confirm_abdopain": "Selected",
+      "prompt_como01": [
+        "Irritable Bowel Syndrome"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [
+        "Buscopan 10mg PRN"
+      ],
+      "soc_gen01": "Never",
+      "soc_gen02": "No",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "N/A",
+      "soc_gen013": "N/A",
+      "soc_gen021": "N/A",
+      "med_gen011": "No",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "pain_git_02": "Started about 24 hours ago",
+      "pain_git_03": "Yes, still having pain right now",
+      "pain_git_05": "One continuous episode of pain that has gotten worse",
+      "pain_git_01": "Across my lower stomach, mostly on the left side",
+      "pain_git_031A": "3 out of 10, mild crampy discomfort",
+      "pain_git_04": "Gradual onset, comes and goes",
+      "pain_git_06": "Dull crampy ache, feels like gas bloating",
+      "pain_git_07A": "Comes and goes (colicky)",
+      "git_pain07": "No, remains generalized in the lower abdomen",
+      "git_pain08": "No, coughing or moving does not make it worse",
+      "git_06": "Yes, abdomen feels slightly bloated",
+      "git_pain01": "No back radiation",
+      "git_pain02": "No chest radiation",
+      "git_pain03": "No acid reflux sensation",
+      "git_01": "No difficulty passing stools"
+    },
+    "vitals": {
+      "respiratory_rate": 16,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 70
+    },
+    "ground_truth_redflag": "No",
+    "clinical_reason": "Mild stomach bloating with completely normal vitals."
+  },
+  {
+    "id": "case_42_headache_normal",
+    "age": 36,
+    "gender": "Male",
+    "complaints": [
+      "Headache"
+    ],
+    "details": {
+      "prom_headache": "Yes",
+      "confirm_headache": "Selected",
+      "prompt_como01": [
+        "None"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [],
+      "soc_gen01": "No",
+      "soc_gen02": "Yes",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "Stopped smoking 8 years ago",
+      "soc_gen013": "10 years of active smoking before quitting",
+      "soc_gen021": "Social drinking, about 1-2 standard drinks on weekends",
+      "med_gen011": "No",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "neuro_head01": "All over my head, but worse at the back and temples",
+      "neuro_head02": "1 day",
+      "neuro_head04": "It is constantly present, does not go away",
+      "neuro_head03": "It started gradually this morning",
+      "neuro_head05": "3 out of 10, mild dull headache",
+      "neuro_head08": "Mild dull ache, feels like a tight band around my head",
+      "neuro_head12": "No, bright lights do not make it worse",
+      "neuro_head13": "No, loud noises are fine"
+    },
+    "vitals": {
+      "respiratory_rate": 16,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 71
+    },
+    "ground_truth_redflag": "No",
+    "clinical_reason": "Gradual-onset mild headache (tension type), no confusion, normal vitals."
+  },
+  {
+    "id": "case_43_abrasion_normal",
+    "age": 22,
+    "gender": "Female",
+    "complaints": [
+      "Injury"
+    ],
+    "details": {
+      "prom_injury": "Yes",
+      "confirm_injury": "Proceed",
+      "prompt_como01": [
+        "None"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [],
+      "soc_gen01": "Never",
+      "soc_gen02": "No",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "N/A",
+      "soc_gen013": "N/A",
+      "soc_gen021": "N/A",
+      "med_gen011": "No",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "inj_01": "Right ankle and foot area",
+      "inj_04": "Happened yesterday evening",
+      "inj_05": "Slipped on a wet patch of grass and twisted my ankle",
+      "inj_02": "Yes, mild dull ache",
+      "inj_03": "3 out of 10 pain score",
+      "inj_region02": "Yes, able to stand and walk normally"
+    },
+    "vitals": {
+      "respiratory_rate": 14,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 68
+    },
+    "ground_truth_redflag": "No",
+    "clinical_reason": "Minor skin abrasion from a fall. Vitals are normal and stable."
+  },
+  {
+    "id": "case_44_neck_normal",
+    "age": 40,
+    "gender": "Male",
+    "complaints": [
+      "Musculoskeletal"
+    ],
+    "details": {
+      "prom_msk": "Yes",
+      "confirm_msk": "Proceed",
+      "prompt_como01": [
+        "None"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [],
+      "soc_gen01": "No",
+      "soc_gen02": "No",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "Stopped smoking 8 years ago",
+      "soc_gen013": "10 years of active smoking before quitting",
+      "soc_gen021": "N/A",
+      "med_gen011": "No",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "msk_01": "Dull ache and stiffness in my lower back",
+      "msk_02": "Lower back / lumbar region",
+      "msk_03": "Started 3 days ago after lifting heavy boxes"
+    },
+    "vitals": {
+      "respiratory_rate": 14,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 69
+    },
+    "ground_truth_redflag": "No",
+    "clinical_reason": "Stiff neck from sleeping wrong. Normal respiratory rate and HRV."
+  },
+  {
+    "id": "case_45_dysuria_normal",
+    "age": 26,
+    "gender": "Female",
+    "complaints": [
+      "Urinary Problems"
+    ],
+    "details": {
+      "prom_gu": "Yes",
+      "confirm_gu": "Proceed",
+      "prompt_como01": [
+        "None"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [],
+      "soc_gen01": "Never",
+      "soc_gen02": "No",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "N/A",
+      "soc_gen013": "N/A",
+      "soc_gen021": "N/A",
+      "med_gen011": "No",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "gu_01": "Yes, able to pass urine but with difficulty",
+      "gu_02": "Yes, severe burning and stinging pain when passing urine",
+      "gu_021": "3 days",
+      "gu_03": "Passing urine much more frequently, but only small amounts each time",
+      "gu_04": "Yes, looks darker and cloudy",
+      "gu_05": "Yes, feel a constant urge to go but cannot empty fully",
+      "gu_06": "No blood seen in the urine",
+      "gu_07": "Yes, dull ache on the lower back and sides"
+    },
+    "vitals": {
+      "respiratory_rate": 15,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 67
+    },
+    "ground_truth_redflag": "No",
+    "clinical_reason": "Urinary burning/dysuria. Completely stable vitals with no fever, indicating mild localized cystitis."
+  },
+  {
+    "id": "case_46_orthostatic_normal",
+    "age": 29,
+    "gender": "Female",
+    "complaints": [
+      "Dizziness"
+    ],
+    "details": {
+      "prom_dizziness": "Yes",
+      "confirm_dizziness": "Proceed",
+      "prompt_como01": [
+        "None"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [],
+      "soc_gen01": "Never",
+      "soc_gen02": "No",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "N/A",
+      "soc_gen013": "N/A",
+      "soc_gen021": "N/A",
+      "med_gen011": "No",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "neuro_dizz02": "Started this morning",
+      "neuro_dizz01": "Brief lightheadedness when standing up quickly",
+      "neuro_dizz03": "Briefly for a few seconds when standing up",
+      "neuro_dizz05": "Comes and goes, resolved within 5-10 seconds"
+    },
+    "vitals": {
+      "respiratory_rate": 16,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 69
+    },
+    "ground_truth_redflag": "No",
+    "clinical_reason": "Transient dizziness when standing up quickly. Resolved immediately, vitals are completely stable."
+  },
+  {
+    "id": "case_47_toothache_normal",
+    "age": 35,
+    "gender": "Male",
+    "complaints": [
+      "ENT Problem"
+    ],
+    "details": {
+      "prom_ent": "Yes",
+      "confirm_ent": "Proceed",
+      "prompt_como01": [
+        "None"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [],
+      "soc_gen01": "Never",
+      "soc_gen02": "No",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "N/A",
+      "soc_gen013": "N/A",
+      "soc_gen021": "N/A",
+      "med_gen011": "No",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "ent_00": "Ear problem",
+      "ent_ear01": "Sharp pain inside the ear and blocked sensation",
+      "ent_ear02": "2 days ago",
+      "ent_ear03": "Right ear"
+    },
+    "vitals": {
+      "respiratory_rate": 15,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 72
+    },
+    "ground_truth_redflag": "No",
+    "clinical_reason": "Mild toothache with completely normal and stable vital signs."
+  },
+  {
+    "id": "case_48_runnynose_normal",
+    "age": 21,
+    "gender": "Female",
+    "complaints": [
+      "ENT Problem"
+    ],
+    "details": {
+      "prom_ent": "Yes",
+      "confirm_ent": "Proceed",
+      "prompt_como01": [
+        "None"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [],
+      "soc_gen01": "Never",
+      "soc_gen02": "No",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "N/A",
+      "soc_gen013": "N/A",
+      "soc_gen021": "N/A",
+      "med_gen011": "No",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "ent_00": "Ear problem",
+      "ent_ear01": "Sharp pain inside the ear and blocked sensation",
+      "ent_ear02": "2 days ago",
+      "ent_ear03": "Right ear"
+    },
+    "vitals": {
+      "respiratory_rate": 14,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 68
+    },
+    "ground_truth_redflag": "No",
+    "clinical_reason": "Runny nose and congestion. Completely stable vitals. Common cold."
+  },
+  {
+    "id": "case_49_vomiting_once_normal",
+    "age": 44,
+    "gender": "Male",
+    "complaints": [
+      "Vomiting"
+    ],
+    "details": {
+      "prom_vomiting": "Yes",
+      "confirm_vomiting": "Proceed",
+      "prompt_como01": [
+        "Gastro-oesophageal Reflux Disease"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [
+        "Gaviscon Liquid PRN"
+      ],
+      "soc_gen01": "No",
+      "soc_gen02": "Yes",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "Stopped smoking 8 years ago",
+      "soc_gen013": "10 years of active smoking before quitting",
+      "soc_gen021": "Social drinking, about 1-2 standard drinks on weekends",
+      "med_gen011": "No",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A",
+      "git_vom01": "Yes, mild nausea after meals",
+      "git_vom02": "Clear fluid and stomach contents",
+      "git_vom03": "Vomited once",
+      "git_vom04": "1 day",
+      "git_vom05": "Yes, able to keep down water and clear fluids now"
+    },
+    "vitals": {
+      "respiratory_rate": 16,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 70
+    },
+    "ground_truth_redflag": "No",
+    "clinical_reason": "Vomited once after eating bad food. Stable vitals, no signs of dehydration or fever."
+  },
+  {
+    "id": "case_50_checkup_normal",
+    "age": 50,
+    "gender": "Female",
+    "complaints": [
+      "Systemic Symptoms"
+    ],
+    "details": {
+      "prompt_como01": [
+        "None"
+      ],
+      "prompt_como02": [
+        "None"
+      ],
+      "med_gen01": [],
+      "soc_gen01": "Never",
+      "soc_gen02": "No",
+      "soc_gen04": "Fully independent in all activities of daily living before this illness",
+      "soc_gen03": "With my family (spouse and children)",
+      "soc_gen011": "N/A",
+      "soc_gen012": "N/A",
+      "soc_gen013": "N/A",
+      "soc_gen021": "N/A",
+      "med_gen011": "No",
+      "med_gen012": "No",
+      "med_gen0121": "N/A",
+      "med_gen013": "No",
+      "med_gen014": "No",
+      "med_gen015": "No",
+      "med_gen02": "No",
+      "med_gen021": "N/A",
+      "med_gen022": "N/A",
+      "med_gen023": "N/A"
+    },
+    "vitals": {
+      "respiratory_rate": 12,
+      "heart_beat_rhythm": "Normal",
+      "heart_rate": 66
+    },
+    "ground_truth_redflag": "No",
+    "clinical_reason": "Healthy check-in patient with perfect baseline vital signs."
+  }
+];
+        const labelMap = {
+  "prom_fever": "Have you had a fever?",
+  "confirm_fever": "You have selected 'Fever' as one of your symptoms. We would like to ask a few questions about this. Tap 'Remove' if this is not correct.",
+  "fever_01": "When did your fever start?",
+  "fever_02": "How many days have you had the fever?",
+  "fever_03": "Are you still feeling feverish today?",
+  "fever_04": "Have you measured your temperature at home?",
+  "fever_041": "What was the highest reading?",
+  "fever_05": "Have you been admitted to hospital within the last 1 month?",
+  "fever_06": "Have you been in contact with anyone who is unwell within last 2 weeks?",
+  "fever_07": "Have you travelled overseas in the last 1 month?",
+  "fever_08": "Have you recently been hiking, jungle trekking, or had contact with rivers, floodwater, or muddy water? (within the last 1 month)",
+  "prom_sob": "Do you have shortness of breath?",
+  "confirm_sob": "You have selected 'Shortness of breath' as one of your symptoms. We would like to ask a few questions about this. Tap 'Remove' if this is not correct.",
+  "resp_sob01": "Did the shortness of breath start suddenly or gradually?",
+  "resp_sob02": "How many days have you been having shortness of breath?",
+  "resp_sob03": "Do you feel short of breath at rest or when you are active?",
+  "resp_sob04": "Has it limited your ability to walk or do usual activities?",
+  "resp_sob05": "Do you feel breathless when lying flat?",
+  "resp_sob06": "Have you been waking up suddenly at night because of shortness of breath and needing to sit up?",
+  "resp_sob07": "Is the shortness of breath triggered by dust, smoke, or cold air?",
+  "resp_sob08": "Does the pain get worse when you take a deep breath or cough?",
+  "resp_sob09": "Do you hear a wheezing sound when breathing?",
+  "prom_cough": "Do you have a cough?",
+  "confirm_cough": "You have selected 'Cough' as one of your symptoms. We would like to ask a few questions about this. Tap 'Remove' if this is not correct.",
+  "resp_cou01": "How many days have you been coughing?",
+  "resp_cou02": "Are you coughing up phlegm?",
+  "resp_cou021": "What colour is the phlegm?",
+  "resp_cou022": "If you usually have phlegm, is the amount more than usual?",
+  "resp_cou023": "If you usually have phlegm, has it changed in colour?",
+  "resp_cou03": "Have you coughed up blood?",
+  "resp_cou04": "Do you have runny nose?",
+  "resp_cou05": "Do you have sore throat?",
+  "prom_vomiting": "Have you been vomiting?",
+  "git_vom01": "Have you been feeling nauseated (like you want to vomit)?",
+  "confirm_vomiting": "You have selected 'Vomiting' as one of your symptoms. We would like to ask a few questions about this. Tap 'Remove' if this is not correct.",
+  "git_vom02": "What does the vomit look like?",
+  "git_vom03": "How many times have you vomited?",
+  "git_vom04": "How many days have you been vomiting?",
+  "git_vom05": "Are you able to keep down fluids or water?",
+  "prom_diarrhoea": "Have you been having loose or watery stools (diarrhoea)?",
+  "confirm_diarrhoea": "You have selected 'Loose or watery stools (diarrhoea)' as one of your symptoms. We would like to ask a few questions about this. Tap 'Remove' if this is not correct.",
+  "git_dia01": "How many times have you passed loose or watery stools?",
+  "git_dia02": "How many days have you been having loose or watery stools (diarrhoea)?",
+  "git_dia03": "Did the diarrhoea start after eating outside or suspicious food?",
+  "git_dia021": "Did anyone else who ate the same food have similar symptoms?",
+  "prom_abdopain": "Do you have stomach or abdominal pain?",
+  "confirm_abdopain": "You have selected 'Stomach or abdominal pain' as one of your symptoms. We would like to ask a few questions about this. Tap 'Remove' if this is not correct.",
+  "git_pain01": "Does the pain go through to your back?",
+  "git_pain02": "Do you feel the pain going up to your chest?",
+  "git_pain03": "Do you feel acid or food coming up into your throat?",
+  "git_pain04": "Do you feel the pain going to your right shoulder or upper back?",
+  "git_pain05": "Does eating make the pain worse?",
+  "git_pain06": "Does the pain come after eating oily or fatty food?",
+  "git_pain07": "Did the pain start around your belly button and then move to the lower right side of your abdomen?",
+  "git_pain08": "Does coughing or moving make the pain worse?",
+  "git_01": "Have you been constipated or have difficulty passing stools?",
+  "git_02": "When did you last open your bowels?",
+  "git_03": "What colour are your stools?",
+  "git_04": "Have you noticed blood in your stools?",
+  "git_05": "Are you able to pass gas (wind)?",
+  "git_06": "Does your abdomen feel bloated or distended?",
+  "git_07": "Have your eyes or skin turned yellow?",
+  "git_08": "Do you have difficulty swallowing?",
+  "git_09": "Do you have pain when swallowing?",
+  "git_10": "Do you have difficulty controlling your bowels (accidental leakage)?",
+  "prom_gu": "Do you have problems with passing urine?",
+  "confirm_gu": "You have selected 'Problems with passing urine' as one of your symptoms. We would like to ask a few questions about this. Tap 'Remove' if this is not correct.",
+  "gu_01": "Are you able to pass urine?",
+  "gu_02": "Do you feel pain or burning when passing urine?",
+  "gu_021": "How many days have you had this problem?",
+  "gu_03": "Compared to your usual, are you passing urine more often, or less amount, or about the same?",
+  "gu_031": "How many days have you experienced this?",
+  "gu_04": "Is your urine darker than usual?",
+  "gu_041": "How many days have you experienced this?",
+  "gu_05": "Do you feel the urge to pass urine but cannot get it out?",
+  "gu_051": "How many days have you had this problem?",
+  "gu_06": "Have you noticed blood in your urine or blood coming out of your urine passage? (blot clots, or red/pink coloured urine, or fresh blood)",
+  "gu_061": "How many days have you had this problem?",
+  "gu_07": "Do you have pain at your side (flank) or lower back? (like as shown in the picture)",
+  "gu_071": "Is the pain constant or does it come in waves?",
+  "gu_072": "Does the pain move from your side to your groin?",
+  "gu_08": "Have you ever had kidney stones before?",
+  "gu_09": "Do you currently have a stent (tube) placed in your kidney or ureter?",
+  "gu_091": "When was the stent inserted? (days/weeks/months ago)",
+  "gu_10": "Have you had any recent procedures involving your urine passage (such as a catheter, scope, or surgery) within the past 2 weeks?",
+  "gu_11": "Do you have difficulty controlling your bladder (accidental leakage)?",
+  "gu_cbd01": "Does the urine in the bag look cloudy?",
+  "gu_cbd011": "How many days have you had this problem?",
+  "gu_cbd02": "Compared to usual, has the amount of urine in your urine bag been more, less, or about the same?",
+  "gu_cbd021": "How many days have you had this problem?",
+  "gu_cbd03": "Do you feel that your urine catheter is not draining properly or may be blocked?",
+  "gu_cbd031": "How many days have you had this problem?",
+  "gu_cbd04": "Is urine leaking around the catheter instead of going into the bag?",
+  "gu_cbd041": "How many days have you had this problem?",
+  "gu_tes01": "Do you have pain in your testicle or scrotum?",
+  "gu_tes011": "Is the pain on one side or both sides?",
+  "gu_tes012": "Did the pain start suddenly?",
+  "gu_tes013": "When did the symptom start? (days ago)",
+  "gu_tes014": "How bad is the pain?",
+  "gu_tes015": "Did the symptom start suddenly or gradually?",
+  "gu_tes02": "Have you noticed any swelling in your testicle or scrotum?",
+  "gu_tes021": "Is the swelling on one side or both sides?",
+  "gu_tes022": "Did the swelling come on suddenly or gradually?",
+  "prom_cardpain": "Do you or did you have chest pain?",
+  "confirm_cardpain": "You have selected 'Chest pain' as one of your symptoms. We would like to ask a few questions about this. Tap 'Remove' if this is not correct.",
+  "card_pain01": "What were you doing when the pain started?",
+  "card_pain02A": "Does the pain go through to your back?",
+  "card_pain03A": "Does the pain go to your jaw?",
+  "card_pain04A": "Does the pain go to your neck?",
+  "card_pain05A": "Does the pain go to your arms?",
+  "card_pain06A": "Does sitting forward make the pain better?",
+  "card_pain07A": "Does the pain improve with rest?",
+  "card_pain08A": "Does the pain get worse if you exert yourself such as walking or climbing stairs?",
+  "card_pain09A": "Does the pain get worse if you move or twist your body, move your arms, or when you press on your chest?",
+  "card_pain10A": "Do you feel nauseated (like you want to vomit) when you have the chest pain?",
+  "card_pain11A": "Do you have sweating when the chest pain occurs?",
+  "card_pain02B": "Did the pain go through to your back?",
+  "card_pain03B": "Did the pain go to your jaw?",
+  "card_pain04B": "Did the pain go to your neck?",
+  "card_pain05B": "Did the pain go to your arms?",
+  "card_pain06B": "Did sitting forward make the pain better?",
+  "card_pain07B": "Did the pain improve with rest?",
+  "card_pain08B": "Did the pain get worse if you exert yourself such as walking or climbing stairs?",
+  "card_pain09B": "Did the pain get worse if you move or twist your body, move your arms, or when you press on your chest?",
+  "card_pain10B": "Did you feel nauseated (like you want to vomit) when you had the chest pain?",
+  "card_pain11B": "Did you have sweating when the chest pain occurred?",
+  "card_01": "Have you noticed any swelling in your feet or ankles?",
+  "card_011": "Is the swelling on one side or both sides?",
+  "card_012": "Which side is more swollen?",
+  "card_013": "Is the swollen leg painful?",
+  "card_014": "Does the leg feel warm or look red?",
+  "card_015": "Do you have weakness or inability to move one of your legs, or has your leg been placed in a cast recently?",
+  "card_016": "Have you ever been diagnosed with a blood clot in your leg (deep vein thrombosis) before?",
+  "card_02": "Have you been told by a doctor to limit how much fluid or drinks you take?",
+  "card_03": "Have you felt your heart beating very fast or beating irregularly?",
+  "prom_headache": "Do you have a headache?",
+  "confirm_headache": "You have selected 'Headache' as one of your symptoms. We would like to ask a few questions about this. Tap 'Remove' if this is not correct.",
+  "neuro_head01": "Where do you feel the headache? (👉 Tap on the area)",
+  "neuro_head02": "When did the headache start? (days ago)",
+  "neuro_head03": "Did the headache start suddenly or gradually?",
+  "neuro_head04": "Is constantly there or does it come and go?",
+  "neuro_head05": "How bad is the headache now?",
+  "neuro_head06": "Is this your first time having this type of headache?",
+  "neuro_head061": "Is this headache different from your previous headaches?",
+  "neuro_head07": "Is it getting better, worse, or staying the same?",
+  "neuro_head08": "Can you describe the headache?",
+  "neuro_head09": "Did the headache wake you from sleep?",
+  "neuro_head10": "Does coughing or straining make the headache worse?",
+  "neuro_head11": "Does changing body position affect the headache?",
+  "neuro_head12": "Do bright lights make the headache worse?",
+  "neuro_head13": "Do loud noises make the headache worse?",
+  "neuro_head14": "Do you get pain in your jaw when chewing?",
+  "neuro_head15": "Is your scalp painful to touch?",
+  "neuro_head16": "Do you have a history of head injury?",
+  "neuro_head161": "When did the injury happen? (days ago)",
+  "neuro_head162": "How did the injury happen?",
+  "prom_dizziness": "Have you been feeling dizzy or giddy?",
+  "confirm_dizziness": "You have selected 'Dizziness' as one of your symptoms. We would like to ask a few questions about this. Tap 'Remove' if this is not correct.",
+  "neuro_dizz01": "Which best describes your dizziness?",
+  "neuro_dizz02": "When did it start? (days ago)",
+  "neuro_dizz03": "Did the dizziness start suddenly or gradually?",
+  "neuro_dizz04": "Is the dizziness getting better, worse, or staying the same?",
+  "neuro_dizz05": "Is the dizziness present all the time, or does it come and go?",
+  "neuro_dizz06": "Does moving your head (like when turning the head or looking up) trigger the dizziness?",
+  "neuro_dizz07": "Do you feel dizzy when you stand up?",
+  "neuro_dizz08": "Have you had vertigo before?",
+  "neuro_dizz081": "Does this dizziness feel the same like your previous vertigo?",
+  "neuro_dizz09": "Have you noticed any problems with your ear or hearing?",
+  "prom_weakness": "Have you been feeling weak in your body?",
+  "confirm_weakness": "You have selected 'Body weakness' as one of your symptoms. We would like to ask a few questions about this. Tap 'Remove' if this is not correct.",
+  "neuro_weak01": "Do you feel weak generally, or only in certain parts of your body?",
+  "neuro_weak011": "Have you noticed weakness in your face, arm, or leg?",
+  "neuro_weak012": "Is the weakness on one side of your body?",
+  "neuro_weak02": "Did the weakness start suddenly?",
+  "neuro_weak03": "When did the weakness start? (days ago)",
+  "neuro_weak031": "What time did the weakness start? (hour:min)",
+  "neuro_weak04": "Which parts of your body feel weak? (👉 Tap on the area)",
+  "neuro_weak05": "Have you noticed any numbness or loss of feeling on one side?",
+  "neuro_weak051": "Which part of your body feels numb or has reduced feeling? (👉 Tap on the area)",
+  "neuro_weak06": "Do you have difficulty speaking?",
+  "neuro_weak07": "Do you have problems walking or keeping your balance?",
+  "neuro_weak08": "Has one side of your face become droopy or weak?",
+  "neuro_weak09": "Have you fallen because of the weakness?",
+  "prom_syncope": "Have you fainted or nearly fainted (temporarily lost consciousness)?",
+  "confirm_syncope": "You have selected 'Fainted or blackout' as one of your symptoms. We would like to ask a few questions about this. Tap 'Remove' if this is not correct.",
+  "neuro_sync01": "When did this happen? (days ago)",
+  "neuro_sync02": "Did you completely lose consciousness, or did you just feel like you were about to faint?",
+  "neuro_sync021": "About how long were you unconscious?",
+  "neuro_sync03": "What was your body position just before it happened?",
+  "neuro_sync031": "Were you standing for a long time when it happened?",
+  "neuro_sync04": "Did it happen suddenly without warning?",
+  "neuro_sync05": "Were you in a hot environment when it happened?",
+  "neuro_sync06": "Did you feel your heart racing before it happened?",
+  "neuro_sync07": "Did you have chest pain before it happened?",
+  "neuro_sync08": "Were you breathing rapidly before it happened?",
+  "neuro_sync09": "Did it happen after passing urine?",
+  "neuro_sync10": "Did it happen during or after passing motion?",
+  "neuro_sync11": "Did it happen after coughing or sneezing?",
+  "neuro_sync12": "Did it happen during stress, pain, or emotional distress?",
+  "neuro_sync13": "Did you feel dizzy or lightheaded before it happened?",
+  "neuro_sync14": "Did you feel like you wanted to vomit before it happened?",
+  "neuro_sync15": "Did you have sweating before it happened?",
+  "neuro_sync16": "Did your vision become blurred or dark before it happened?",
+  "neuro_sync17": "Did you recover quickly or take time to recover after that?",
+  "neuro_sync18": "Did you feel confused after you recovered?",
+  "neuro_sync19": "After you recovered, did you feel weak in any part of your body?",
+  "neuro_sync20": "Did you bite your tongue during the episode?",
+  "neuro_sync21": "Did you lose control of urine or bowel motion during the episode?",
+  "neuro_01": "Does your neck feel stiff or painful to move?",
+  "neuro_02": "Have you felt confused or not thinking clearly?",
+  "neuro_03": "Did you have any shaking episodes or fits (seizure)?",
+  "neuro_031": "Have you had one episode of pain, or multiple episodes?",
+  "neuro_032": "How many episodes have you had?",
+  "neuro_033": "When was the last episode? (days ago)",
+  "sys_01": "Have you lost your appetite?",
+  "sys_02": "Have you lost weight recently without trying?",
+  "sys_03": "Have you been feeling unusually tired or lacking of energy?",
+  "sys_04": "Do you have muscle aches or body aches?",
+  "sys_05": "Have you been sweating a lot at night (soaking your clothes and bedsheets)?",
+  "og_01": "Is there a chance you might be pregnant?",
+  "og_011": "How many weeks pregnant are you?",
+  "og_012": "When was your last menstrual period?",
+  "og_013": "Have you had any vaginal bleeding or spotting?",
+  "og_0131": "When did this start? (days ago)",
+  "og_02": "Have you noticed any abnormal vaginal discharge?",
+  "og_03": "Are you currently having your menses?",
+  "og_031": "Do you usually have pain during your menses?",
+  "og_032": "Are you periods heavier than usual?",
+  "prom_bleeding": "Have you noticed any bleeding recently?",
+  "confirm_bleeding": "You have selected 'Bleeding' as one of your symptoms. We would like to ask a few questions about this. Tap 'Remove' if this is not correct.",
+  "bleed_01": "Where is the bleeding coming from?",
+  "bleed_02": "How did the bleeding start?",
+  "bleed_03": "When did the bleeding start? (days ago)",
+  "bleed_04": "Has the bleeding stopped or still ongoing?",
+  "bleed_screen01": "Have you vomited blood or dark material?",
+  "bleed_screen02": "Have you noticed fresh blood when passing stool?",
+  "bleed_screen03": "Have your stools been black in colour?",
+  "bleed_screen04": "Are your periods heavier than usual?",
+  "bleed_screen05": "Have you noticed blood in your urine?",
+  "bleed_screen06": "Have you had any recent injury or bleeding from elsewhere?",
+  "bleed_screen07": "Have you had nose or gum bleeding?",
+  "bleed_screen08": "Have you noticed skin bruising recently, even without injury?",
+  "soc_gen01": "Do you smoke or have you smoked cigarettes before?",
+  "soc_gen011": "About how many cigarettes per day?",
+  "soc_gen012": "When did you stop smoking?",
+  "soc_gen013": "For how many years have you smoked?",
+  "soc_gen02": "Do you drink alcohol?",
+  "soc_gen021": "How often do you usually drink alcohol?",
+  "soc_gen03": "Who do you live with?",
+  "soc_gen04": "Which of the following best describes you before this illness?",
+  "med_gen01": "Are you currently taking any regular medications?",
+  "med_gen011": "Are you taking medication for high blood pressure?",
+  "med_gen012": "Are you taking medication for diabetes?",
+  "med_gen0121": "In the past few days, have you missed or skipped any of your diabetes medications?",
+  "med_gen013": "Are you taking blood-thinning medications like warfarin, dabigatran, or apixaban?",
+  "med_gen014": "Are you taking medications aspirin or clopidogrel?",
+  "med_gen015": "Are you taking steroid medications like prednisolone or hydrocortisone?",
+  "med_gen02": "Do you have any allergies to medications?",
+  "med_gen021": "Which medication are you allergic to?",
+  "med_gen022": "What reaction did you have?",
+  "med_gen023": "Did you need hospital treatment for this reaction?",
+  "med_fever01": "Have you taken fever medication such as paracetamol (panadol) since the fever started?",
+  "med_fever02": "Have you taken antibiotics in the past 2 weeks?",
+  "med_fever03": "Have you received any vaccination in the past 1 month?",
+  "med_01": "Have you started any new medications in the last 2 weeks?",
+  "med_02": "Did this problem start after taking any medication?",
+  "med_03": "Have you been taking painkillers like ibuprofen or diclofenac regularly?",
+  "med_04": "Have you received a blood transfusion in the past 1 month?",
+  "med_05": "Do you take any herbal or traditional medications?",
+  "med_06": "Have you taken any painkiller medication? (for example panadol, ibuprofen, voltaren, tramadol)",
+  "med_07": "Have you had a tetanus vaccination in the last 5–10 years?",
+  "prompt_como01": "Do you have a history of any of the following medical conditions?",
+  "como_081": "Are you receiving chemotherapy or cancer treatment? (within the last 1 month)",
+  "como_091": "Are you on kidney dialysis treatment?",
+  "como_092": "When was your last dialysis session?",
+  "como_10": "Have you had any surgery within the last 3 months?",
+  "prompt_como02": "Do you have any of the following medical devices in your body?",
+  "prompt_como02_lite": "Do you have any of the following medical devices in your body?",
+  "pain_git_01": "Where do you feel the pain? (👉 Tap on the area)",
+  "pain_git_02": "When did the pain start? (days ago)",
+  "pain_git_03": "Are you still having pain right now?",
+  "pain_git_031A": "How bad is the pain now?",
+  "pain_git_031B": "How bad was the pain now?",
+  "pain_git_04": "Did the pain start suddenly or gradually?",
+  "pain_git_05": "Have you had one episode of pain, or multiple episodes?",
+  "pain_git_051": "How many episodes have you had?",
+  "pain_git_052": "How long does each episode usually last?",
+  "pain_git_053": "How bad was the pain at its worst?",
+  "pain_git_06": "Can you describe the pain?",
+  "pain_git_07A": "Is the pain constant, or does it come and go?",
+  "pain_git_07B": "Was the pain constant, or did it come and go?",
+  "pain_card_01": "Where do you feel the pain? (👉 Tap on the area)",
+  "pain_card_02": "When did the pain start? (days ago)",
+  "pain_card_03": "Are you still having pain right now?",
+  "pain_card_031A": "How bad is the pain now?",
+  "pain_card_031B": "How bad was the pain now?",
+  "pain_card_04": "Did the pain start suddenly or gradually?",
+  "pain_card_05": "Have you had one episode of pain, or multiple episodes?",
+  "pain_card_051": "How many episodes have you had?",
+  "pain_card_052": "How long does each episode usually last?",
+  "pain_card_053": "How bad was the pain at its worst?",
+  "pain_card_06": "Can you describe the pain?",
+  "pain_card_07A": "Is the pain constant, or does it come and go?",
+  "pain_card_07B": "Was the pain constant, or did it come and go?",
+  "prom_injury": "Have you had any injury?",
+  "confirm_injury": "You have selected 'Injury' as one of your symptoms. We would like to ask a few questions about this. Tap 'Remove' if this is not correct.",
+  "inj_01": "Which part of your body was injured? (👉 Tap on the area)",
+  "inj_02": "Are you in pain now?",
+  "inj_03": "How bad is your pain right now?",
+  "inj_04": "When did the injury happen? (days ago)",
+  "inj_05": "How did the injury happen?",
+  "inj_06": "Did this injury happen as a result of an assault?",
+  "inj_region01": "What does the injury look like at this area?",
+  "inj_region02": "Can you stand or walk on it?",
+  "inj_region03": "Do you have numbness or tingling in this area?",
+  "inj_region04": "Is there anything in the wound (foreign body like glass, splinter, dirt)?",
+  "inj_eye00": "Do you have eye injury?",
+  "inj_eye01": "What caused the eye injury?",
+  "inj_eye02": "Did anything like chemicals or cleaning agent get into your eye?",
+  "inj_eye021": "Did you rinse your eye with water immediately after it happened?",
+  "inj_eye03": "Has your vision become blurred or reduced after the injury?",
+  "inj_eye04": "Is there bleeding in the eye or around it?",
+  "prom_skin": "Have you noticed any skin changes such as redness, swelling, or a wound?",
+  "confirm_skin": "You have selected 'Skin problem' as one of your symptoms. We would like to ask a few questions about this. Tap 'Remove' if this is not correct.",
+  "skin_01": "What kind of skin changes have you noticed?",
+  "skin_02": "Which part of your body has this skin changes or problem? (👉 Tap on the area)",
+  "skin_03": "When did this problem start? (days ago)",
+  "prom_eye": "Do you have any problems with your eye or vision?",
+  "confirm_eye": "You have selected 'Eye problem' as one of your symptoms. We would like to ask a few questions about this. Tap 'Remove' if this is not correct.",
+  "eye_01": "What problems are you having with your eye?",
+  "eye_02": "Which eye is affected?",
+  "eye_03": "When did the problem start? (days ago)",
+  "eye_04": "Did it start suddenly or gradually?",
+  "eye_05": "Did the problem start after an injury to your eye or face?",
+  "eye_06": "Have you completely loss vision in that eye (cannot see anything at all)?",
+  "eye_07": "Does it hurt when you move you eyes?",
+  "eye_08": "Does your eye look like it is bulging?",
+  "eye_09": "Do bright lights make your eyes more uncomfortable?",
+  "eye_10": "When you look at lights, do you see rings or circles around them (halos)? ",
+  "eye_11": "Did you symptoms start or get worse in a dark environment?",
+  "eye_12": "Do you feel nauseated or have you vomited?",
+  "eye_13": "Do you have discharge in or around your affected eye? (watery / sticky / pus)",
+  "eye_14": "Are your eyelids stuck together when you wake up in the morning?",
+  "eye_15": "Does the affected eye feel itchy or gritty?",
+  "eye_16": "Do you feel like something has entered your eye, or something is stuck in your eye?",
+  "eye_17": "Do you wear contact lenses?",
+  "eye_18": "Have you had any recent eye surgery or eye procedure? (Within the last 2 weeks)",
+  "prom_ent": "Do you have any problems with your ear, nose, or throat?",
+  "confirm_ent": "You have selected 'Ear, Nose or Throat problem' as one of your symptoms. We would like to ask a few questions about this. Tap 'Remove' if this is not correct.",
+  "ent_00": "What kind of problem are you having?",
+  "ent_ear01": "What problems are you having with your ear?",
+  "ent_ear02": "When did the problem start? (days ago)",
+  "ent_ear03": "Which ear is affected?",
+  "ent_ear04": "Did the reduced hearing or hearing loss happen suddenly, gradually over time, or comes and goes?",
+  "ent_ear05": "What do you think entered or got stuck in your ear?",
+  "ent_ear06": "Was this problem caused by an injury to the ear?",
+  "ent_nose01": "What problems are you having with your nose?",
+  "ent_nose02": "When did the problem start? (days ago)",
+  "ent_nose03": "Which nostril is affected?",
+  "ent_nose04": "Did the nosebleed happen spontaneously or after an injury to your nose?",
+  "ent_nose05": "Has the nosebleed stopped, or is it ongoing?",
+  "ent_nose06": "What do you think entered or got stuck in your nose?",
+  "ent_throat01": "What problems are you having with your throat?",
+  "ent_throat02": "When did the problem start? (days ago)",
+  "ent_throat03": "Did this problem start suddenly, gradually over time, or comes and goes?",
+  "ent_throat04": "What do you think is stuck in your throat?",
+  "ent_throat05": "Can you swallow your saliva normally, or is it difficult and causing you to drool?",
+  "ent_throat06": "Are you able to swallow liquids better, or solids better?",
+  "ent_throat07": "Did this problem start after breathing in things like smoke, fumes, or chemicals (for example from a fire or cleaning products)?",
+  "prom_msk": "Do you have any muscle, back or joint problems?",
+  "confirm_msk": "You have selected 'Muscle, Back or Joint problem' as one of your symptoms. We would like to ask a few questions about this. Tap 'Remove' if this is not correct.",
+  "msk_01": "What problems are you having at this area?",
+  "msk_02": "Which area of the body do you have the problem? (👉 Tap on the area)",
+  "msk_03": "When did the problem start? (days ago)",
+  "msk_04": "Was the problem caused by an injury?",
+  "msk_05": "Did this problem start after lifting something heavy, sudden movement, or physical activity?",
+  "msk_06": "Have you had similar problems before?",
+  "msk_07": "Have you been diagnosed with gout before?",
+  "msk_08": "Have you been diagnosed with arthritis before?",
+  "msk_09": "Are you able to stand or walk since this problem started?",
+  "msk_10": "Have you felt numbness around your buttocks, inner thighs, or private part?"
+};
+
+        let currentFilter = 'all';
+        let searchQuery = '';
+        let selectedCaseId = testCases[0] ? testCases[0].id : null;
+
+        function renderCaseList() {
+            const listContainer = document.getElementById('caseList');
+            listContainer.innerHTML = '';
+
+            const filteredCases = testCases.filter(c => {
+                const matchesSearch = c.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    c.complaints.some(comp => comp.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                    c.clinical_reason.toLowerCase().includes(searchQuery.toLowerCase());
+                
+                const matchesFilter = currentFilter === 'all' ||
+                    (currentFilter === 'red' && c.ground_truth_redflag === 'Yes') ||
+                    (currentFilter === 'green' && c.ground_truth_redflag === 'No');
+
+                return matchesSearch && matchesFilter;
+            });
+
+            filteredCases.forEach((c, idx) => {
+                const isSelected = c.id === selectedCaseId;
+                const item = document.createElement('div');
+                item.className = `case-item ${isSelected ? 'selected' : ''}`;
+                item.onclick = () => selectCase(c.id);
+
+                const isRedFlag = c.ground_truth_redflag === 'Yes';
+                const badgeClass = isRedFlag ? 'redflag' : 'greenflag';
+                const badgeText = isRedFlag ? 'RED FLAG' : 'NORMAL';
+
+                item.innerHTML = `
+                    <div class="case-item-header">
+                        <span class="case-id">#${idx + 1} - ${c.id.replace('case_', '')}</span>
+                        <span class="case-badge ${badgeClass}">${badgeText}</span>
+                    </div>
+                    <div class="case-item-complaints">Complaints: ${c.complaints.join(', ')}</div>
+                    <div class="case-item-vitals">
+                        <span>HR: <strong>${c.vitals.heart_rate} bpm</strong></span>
+                        <span>RR: <strong>${c.vitals.respiratory_rate}</strong></span>
+                        <span>Rhythm: <strong>${c.vitals.heart_beat_rhythm}</strong></span>
+                    </div>
+                `;
+                listContainer.appendChild(item);
+            });
+
+            if (filteredCases.length === 0) {
+                listContainer.innerHTML = '<div style="padding: 24px; text-align: center; color: var(--text-secondary);">No cases matched criteria.</div>';
+            }
+        }
+
+        function selectCase(id) {
+            selectedCaseId = id;
+            renderCaseList();
+            renderCaseDetails();
+        }
+
+        function renderCaseDetails() {
+            const detailContainer = document.getElementById('detailContainer');
+            const c = testCases.find(caseItem => caseItem.id === selectedCaseId);
+
+            if (!c) {
+                detailContainer.innerHTML = `
+                    <div class="empty-state">
+                        <p>Select a triage case from the list to view clinical details.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const isRedFlag = c.ground_truth_redflag === 'Yes';
+            const bannerClass = isRedFlag ? 'red' : 'green';
+            const badgeClass = isRedFlag ? 'redflag' : 'greenflag';
+            const badgeText = isRedFlag ? 'RED FLAG' : 'NORMAL';
+
+            const isHRAbnormal = c.vitals.heart_rate < 60 || c.vitals.heart_rate > 100;
+            const isRRAbnormal = c.vitals.respiratory_rate < 12 || c.vitals.respiratory_rate > 20;
+            const isRhythmAbnormal = c.vitals.heart_beat_rhythm !== 'Normal';
+
+            let questionsHtml = '';
+            Object.entries(c.details).forEach(([key, val]) => {
+                const questionText = labelMap[key] || key;
+                const formattedVal = Array.isArray(val) ? val.join(', ') : val;
+                questionsHtml += `
+                    <tr>
+                        <td class="question">${questionText}</td>
+                        <td class="answer">${formattedVal}</td>
+                    </tr>
+                `;
+            });
+
+            detailContainer.innerHTML = `
+                <div class="medical-card">
+                    <div class="medical-card-header">
+                        <div>
+                            <h3 class="patient-title">Patient Profile: ${c.id}</h3>
+                            <div class="patient-meta">
+                                <span><strong>Age:</strong> ${c.age}</span>
+                                <span><strong>Gender:</strong> ${c.gender}</span>
+                                <span><strong>Chief Complaints:</strong> ${c.complaints.join(', ')}</span>
+                            </div>
+                        </div>
+                        <div>
+                            <span class="case-badge ${badgeClass}" style="font-size: 0.95rem; padding: 6px 14px;">${badgeText}</span>
+                        </div>
+                    </div>
+
+                    <div class="details-section">
+                        <h4>💓 Vital Signs Panel</h4>
+                        <div class="vitals-grid">
+                            <div class="vital-box ${isHRAbnormal ? 'abnormal' : ''}">
+                                <div class="vital-label">Heart Rate</div>
+                                <div class="vital-value ${isHRAbnormal ? 'abnormal' : ''}">${c.vitals.heart_rate} <span style="font-size: 0.9rem; font-weight: normal;">bpm</span></div>
+                                <span class="vital-status ${isHRAbnormal ? 'abnormal' : 'normal'}">${isHRAbnormal ? '⚠ Abnormal' : '✓ Normal'}</span>
+                            </div>
+                            <div class="vital-box ${isRRAbnormal ? 'abnormal' : ''}">
+                                <div class="vital-label">Respiratory Rate</div>
+                                <div class="vital-value ${isRRAbnormal ? 'abnormal' : ''}">${c.vitals.respiratory_rate} <span style="font-size: 0.9rem; font-weight: normal;">breaths/min</span></div>
+                                <span class="vital-status ${isRRAbnormal ? 'abnormal' : 'normal'}">${isRRAbnormal ? '⚠ Abnormal (Tachypnea)' : '✓ Normal'}</span>
+                            </div>
+                            <div class="vital-box ${isRhythmAbnormal ? 'abnormal' : ''}">
+                                <div class="vital-label">Heart Rhythm</div>
+                                <div class="vital-value" style="font-size: 1.25rem; margin-top: 10px;">${c.vitals.heart_beat_rhythm}</div>
+                                <span class="vital-status ${isRhythmAbnormal ? 'abnormal' : 'normal'}">${isRhythmAbnormal ? '⚠ Irregular' : '✓ Normal'}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="details-section">
+                        <h4>⚖️ Clinical Evaluation Reasoning</h4>
+                        <div class="clinical-reason-box ${bannerClass}">
+                            <strong>Reasoning:</strong> ${c.clinical_reason}
+                        </div>
+                    </div>
+
+                    <div class="details-section">
+                        <h4>📝 Questionnaire Responses (Translated History)</h4>
+                        <table class="questionnaire-table">
+                            <thead>
+                                <tr>
+                                    <th>Question</th>
+                                    <th>Patient Response</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${questionsHtml}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            searchQuery = e.target.value;
+            renderCaseList();
+        });
+
+        function setFilter(filter) {
+            currentFilter = filter;
+            document.querySelectorAll('.filter-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.currentTarget.classList.add('active');
+            renderCaseList();
+        }
+
+        renderCaseList();
+        renderCaseDetails();
+    </script>
+</body>
+</html>
