@@ -3642,7 +3642,7 @@
 
                 item.innerHTML = `
                     <div class="case-item-header">
-                        <span class="case-id">#${idx + 1} - ${c.id.replace('case_', '')}</span>
+                        <span class="case-id">${c.id.replace('case_', '')}</span>
                         <span class="case-badge ${badgeClass}">${badgeText}</span>
                     </div>
                     <div class="case-item-complaints">Complaints: ${c.complaints.join(', ')}</div>
