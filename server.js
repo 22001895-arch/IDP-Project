@@ -3,11 +3,10 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
-const { AzureOpenAI } = require("openai");
 const os = require('os');
 const path = require('path');
 const bcrypt = require('bcrypt');
-const { formatClinicalHistory, getLabelMap } = require('./formatter.js');
+const { formatClinicalHistory } = require('./formatter.js');
 
 // Import your Hard Rules & Red Flag Detection Engine
 const { detectRedFlags } = require('./triageRules.js');
@@ -34,15 +33,7 @@ const verifyApiKey = (req, res, next) => {
     next();
 };
 
-// ==========================================
-// 🧠 AZURE AI CONFIGURATION 
-// ==========================================
-const aiClient = new AzureOpenAI({
-    endpoint: process.env.AZURE_OPENAI_ENDPOINT,
-    apiKey: process.env.AZURE_OPENAI_API_KEY,
-    apiVersion: "2024-02-01",
-    deployment: process.env.DEPLOYMENT_NAME
-});
+// AI processing is temporarily disabled; history is formatted locally.
 
 // --- DATABASE SETUP (PostgreSQL) ---
 const pool = new Pool({
@@ -140,7 +131,7 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
                 ppi, respiratory_rate, hrv, heart_rate, duration_seconds, heart_beat_rhythm, vitals_scanned_at, vitals_ingested_at,
                 redflag, ai_summary, triage_zone, final_note_summarized
             ) VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'PENDING', 'PENDING', 'PENDING', 'PENDING'
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'PENDING', NULL, 'PENDING', NULL
             ) ON CONFLICT (id) DO UPDATE SET
                 complaints = COALESCE(EXCLUDED.complaints, patients.complaints),
                 details = COALESCE(EXCLUDED.details, patients.details),
@@ -168,7 +159,7 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
         return res.status(500).json({ error: "Database merge failed" });
     }
 
-    // --- 🛡️ DEFENSIVE PARSING: Ensure data is in Object/Array format for AI ---
+    // --- 🛡️ DEFENSIVE PARSING: Ensure data is in Object/Array format for the formatter ---
     if (typeof patientData.complaints === 'string') {
         try { patientData.complaints = JSON.parse(patientData.complaints); } catch (e) { console.warn("⚠️ Failed to parse complaints string"); }
     }
@@ -177,229 +168,61 @@ app.post('/api/sync/history', verifyApiKey, async (req, res) => {
     }
 
     const hasHistory = patientData.complaints && patientData.details;
-    // Require both respiratory_rate and heart_rate for vitals validation
-    const hasVitals = !!patientData.respiratory_rate && !!patientData.heart_rate;
 
     if (!hasHistory) {
         console.log(`⏳ Patient ${id} is in the Waiting Room. Waiting for History app...`);
         return res.json({ success: true, status: "WAITING_FOR_HISTORY" });
     }
 
-    if (!hasVitals) {
-        console.log(`⏳ Patient ${id} is in the Waiting Room. Waiting for rPPG Vitals...`);
-        return res.json({ success: true, status: "WAITING_FOR_VITALS" });
-    }
-
-    // Prevent re-running triage if already complete
-    if (patientData.triage_zone !== 'PENDING' && patientData.triage_zone !== 'UNKNOWN') {
-        return res.json({ success: true, status: "ALREADY_TRIAGED" });
-    }
-
-    // ==========================================
-    // 🚀 WE HAVE BOTH! RUN THE AI PIPELINE!
-    // ==========================================
-    console.log(`✅ All data received for Patient ${id}! Starting Triage...`);
-
-    let finalTriage = {};
-    let notesSummary = "No additional notes provided.";
-
-    // --- 🚨 STEP 0: RED FLAG DETECTION ---
-    console.log("Step 1: Running Red Flag Detection Engine...");
-    const detectedFlags = detectRedFlags(patientData.complaints, patientData.details);
-    let redFlagStatus = detectedFlags.length > 0 ? "Yes" : "No";
-
-    if (detectedFlags.length > 0) {
-        console.log(`🚨 ${detectedFlags.length} Red Flag(s) detected for Patient ${id}:`);
-        detectedFlags.forEach(f => console.log(`   [${f.priority}] ${f.msg}`));
-
-        // 👈 ADDED: Include triggered rule IDs in details JSON
-        // 👈 FIX: was f.questionId (undefined) — corrected to f.ruleId
-        const triggeredRuleIds = detectedFlags.map(f => f.ruleId);
-        patientData.details.triggeredRedFlagRuleIds = triggeredRuleIds;
-        // 👈 NEW: also store human-readable labels for the dashboard to display
-        patientData.details.triggeredRedFlagRules = detectedFlags.map(f => ({
-            id:       f.ruleId,
-            label:    f.label,
-            priority: f.priority
-        }));
-        console.log(`   Triggered Rule IDs: ${triggeredRuleIds.join(", ")}`);
-    } else {
-        console.log("✅ No Red Flags detected.");
+    // Vitals-only updates should not regenerate an already formatted history.
+    const hasIncomingHistory = complaintsStr !== null || detailsStr !== null;
+    if (!hasIncomingHistory && patientData.clinical_history_generated) {
+        return res.json({ success: true, status: "ALREADY_FORMATTED" });
     }
 
     try {
-        console.log("Step 2: Sending to Azure OpenAI for clinical evaluation and hidden red flag check...");
-
-        // Map question IDs to human-readable question text
-        const labelMap = getLabelMap();
-        const detailsWithQuestions = {};
-        if (patientData.details) {
-            for (const [key, value] of Object.entries(patientData.details)) {
-                if (key === 'triggeredRedFlagRuleIds' || key === 'triggeredRedFlagRules') continue;
-                const questionText = labelMap[key] || key;
-                detailsWithQuestions[questionText] = value;
-            }
-        }
-
-        const prompt = `
-            You are a medical triage system.
-            Analyze the following patient data:
-            Complaints: ${JSON.stringify(patientData.complaints)}
-            Details: ${JSON.stringify(detailsWithQuestions)}
-            Vitals: HeartRate=${patientData.heart_rate || 'N/A'}, RespRate=${patientData.respiratory_rate}, HeartBeatRhythm=${patientData.heart_beat_rhythm || 'Normal'}
-
-            TASK:
-            1. Evaluate the patient's vital signs (e.g., Heart Rate, Respiratory Rate, Heart Beat Rhythm) and identify any abnormal values.
-            2. Correlate the vital signs with the patient's questionnaire answers (e.g., check if elevated respiratory rate aligns with breathing difficulties, or elevated/abnormal heart rate or irregular rhythm aligns with chest pain/palpitations/dizziness).
-            3. Write a 2-sentence clinical summary of the patient that incorporates the clinical findings and the correlation between the vitals and symptoms.
-            4. Evaluate if there is any "hidden" red flag potential indicating acute distress or urgent danger.
-               
-               CRITICAL EVALUATION INSTRUCTION:
-               Analyze the vital signs and patient history in tandem. Only flag a red flag if there is a clear, clinically severe correlation (e.g. high respiratory rate combined with shortness of breath, or abnormal heart rate/irregular rhythm combined with chest pain/palpitations/dizziness).
-               Do NOT trigger a red flag for mild, isolated vital abnormalities that lack any correlating clinical complaint. 
-               Be conservative to prevent alert fatigue.
-
-            IMPORTANT: Return ONLY a raw JSON object with this schema:
-            {
-              "summary": "A 2-sentence clinical summary incorporating the vital signs and symptom correlations.",
-              "ai_redflag_detected": true/false,
-              "ai_redflag_reason": "Provide a detailed clinical reason explaining the correlation and rationale behind the red flag evaluation (e.g. why the flag was triggered based on vitals-symptom correlation, or why it was deemed safe if false)."
-            }
-        `;
-
-        const result = await aiClient.chat.completions.create({
-            messages: [{ role: "system", content: prompt }],
-            model: process.env.DEPLOYMENT_NAME,
-            response_format: { type: "json_object" }
-        });
-
-        finalTriage = JSON.parse(result.choices[0].message.content);
-        console.log("Step 3: AI Result Generated -> Red Flag Detected:", finalTriage.ai_redflag_detected);
-
-        if (finalTriage.ai_redflag_detected) {
-            redFlagStatus = "Yes";
-            
-            // Initialize arrays if they don't exist
-            if (!patientData.details.triggeredRedFlagRuleIds) {
-                patientData.details.triggeredRedFlagRuleIds = [];
-            }
-            if (!patientData.details.triggeredRedFlagRules) {
-                patientData.details.triggeredRedFlagRules = [];
-            }
-
-            patientData.details.triggeredRedFlagRuleIds.push("ai_hidden_redflag");
-            patientData.details.triggeredRedFlagRules.push({
-                id: "ai_hidden_redflag",
-                label: `AI Detected: ${finalTriage.ai_redflag_reason}`,
-                priority: "Urgent"
-            });
-        }
-
-        if (patientData.final_notes_raw && patientData.final_notes_raw.trim() !== "") {
-            console.log("XTRA STEP: Summarizing Final Notes separately...");
-            const notesPrompt = `
-                Summarize the following patient comments for a doctor in one concise sentence:
-                "${patientData.final_notes_raw}"
-                Return ONLY JSON: {"summary": "..."}
-            `;
-
-            const notesResult = await aiClient.chat.completions.create({
-                messages: [{ role: "system", content: notesPrompt }],
-                model: process.env.DEPLOYMENT_NAME,
-                response_format: { type: "json_object" }
-            });
-
-            const parsedNotes = JSON.parse(notesResult.choices[0].message.content);
-            notesSummary = parsedNotes.summary;
-        }
-
-        console.log("Step 4: Assigning Queue Number...");
-        let nextQueue = 0;
-        try {
-            const { rows: activeRows } = await pool.query(`SELECT queue_number FROM patients WHERE consultation_status IN ('Waiting', 'In Progress') AND queue_number IS NOT NULL`);
-            const activeQueues = new Set(activeRows.map(r => r.queue_number));
-
-            const { rows: lastRow } = await pool.query(`SELECT queue_number FROM patients WHERE queue_number IS NOT NULL ORDER BY created_at DESC LIMIT 1`);
-            if (lastRow.length > 0) {
-                nextQueue = (lastRow[0].queue_number + 1) % 1000;
-            }
-
-            while (activeQueues.has(nextQueue)) {
-                nextQueue = (nextQueue + 1) % 1000;
-            }
-        } catch(e) {
-            console.error("Queue assignment error:", e.message);
-        }
-
-        console.log("Step 5: Writing to database...");
-
-        // Generate and persist formatted clinical history at triage time
+        // Keep the local rule engine; no AI calls are made.
+        const detectedFlags = detectRedFlags(patientData.complaints, patientData.details);
+        patientData.details.triggeredRedFlagRuleIds = detectedFlags.map(f => f.ruleId);
+        patientData.details.triggeredRedFlagRules = detectedFlags.map(f => ({
+            id: f.ruleId, label: f.label, priority: f.priority
+        }));
         const generatedHistory = formatClinicalHistory(patientData.complaints, patientData.details);
 
-        // 👈 CHANGED: SQL Query (Now UPDATE instead of INSERT because Upsert created the row)
-        const sql = `UPDATE patients SET 
-            redflag = $1, ai_summary = $2, triage_zone = $3, final_note_summarized = $4, details = $5, queue_number = $6,
-            clinical_history_generated = $7
-            WHERE id = $8`;
-
-        // 👈 CHANGED: Values array
-        const triageZoneToSave = "GREEN";
-        const values = [
-            redFlagStatus,
-            finalTriage.summary || "No summary",
-            triageZoneToSave,
-            notesSummary,
-            JSON.stringify(patientData.details), // Saves the triggeredRedFlagRuleIds to DB
-            nextQueue,
-            generatedHistory,
-            id
-        ];
-
-        await pool.query(sql, values);
-
-        console.log("Step 6: Saved to DB successfully!");
-
-        res.json({ success: true, triage: finalTriage });
-
-    } catch (error) {
-        console.error("❌ Error Details:", error.message);
-
-        const fallbackResponse = {
-            zone: "PENDING",
-            summary: error.message.includes("429") ? "Quota hit. Manual triage required." : "System Error."
-        };
-
-        console.log("Step 4 (Fallback): Assigning Queue Number...");
-        let nextQueue = 0;
-        try {
+        let nextQueue = patientData.queue_number;
+        if (nextQueue === null || nextQueue === undefined) {
             const { rows: activeRows } = await pool.query(`SELECT queue_number FROM patients WHERE consultation_status IN ('Waiting', 'In Progress') AND queue_number IS NOT NULL`);
             const activeQueues = new Set(activeRows.map(r => r.queue_number));
             const { rows: lastRow } = await pool.query(`SELECT queue_number FROM patients WHERE queue_number IS NOT NULL ORDER BY created_at DESC LIMIT 1`);
-            if (lastRow.length > 0) nextQueue = (lastRow[0].queue_number + 1) % 1000;
-            while (activeQueues.has(nextQueue)) nextQueue = (nextQueue + 1) % 1000;
-        } catch(e) {}
-
-        // Generate and persist formatted clinical history even on AI failure
-        const fallbackHistory = formatClinicalHistory(patientData.complaints, patientData.details);
-
-        // 👈 CHANGED: Fallback SQL Query (Now UPDATE instead of INSERT)
-        const fallbackSql = `UPDATE patients SET 
-            redflag = $1, ai_summary = $2, triage_zone = $3, final_note_summarized = $4, queue_number = $5,
-            clinical_history_generated = $6
-            WHERE id = $7`;
-
-        // 👈 CHANGED: Fallback Values array
-        const fallbackValues = [
-            "Unknown", fallbackResponse.summary, fallbackResponse.zone, "Error generating notes", nextQueue, fallbackHistory, id
-        ];
-
-        try {
-            await pool.query(fallbackSql, fallbackValues);
-        } catch (dbError) {
-            console.error("❌ Fallback DB Error:", dbError.message);
-        } finally {
-            res.status(500).json({ error: "Processing failed", details: fallbackResponse });
+            nextQueue = lastRow.length > 0 ? (lastRow[0].queue_number + 1) % 1000 : 0;
+            let attempts = 0;
+            while (activeQueues.has(nextQueue) && attempts < 1000) {
+                nextQueue = (nextQueue + 1) % 1000;
+                attempts++;
+            }
+            if (attempts === 1000) throw new Error('No queue numbers available');
         }
+
+        // UNKNOWN means no clinical triage assessment has been made.
+        // Formatting completion is tracked separately by clinical_history_generated.
+        await pool.query(`UPDATE patients SET
+            redflag = $1,
+            details = $2,
+            queue_number = COALESCE(queue_number, $3),
+            clinical_history_generated = $4,
+            triage_zone = CASE WHEN triage_zone IS NULL OR triage_zone = 'PENDING' THEN 'UNKNOWN' ELSE triage_zone END,
+            ai_summary = CASE WHEN ai_summary = 'PENDING' THEN NULL ELSE ai_summary END,
+            final_note_summarized = CASE WHEN final_note_summarized = 'PENDING' THEN NULL ELSE final_note_summarized END
+            WHERE id = $5`, [
+            detectedFlags.length > 0 ? 'Yes' : 'No',
+            JSON.stringify(patientData.details), nextQueue, generatedHistory, id
+        ]);
+
+        console.log(`History formatted and saved for Patient ${id}. AI processing is disabled.`);
+        res.json({ success: true, status: "FORMATTED", clinical_history_formatted: generatedHistory });
+    } catch (error) {
+        console.error('History processing failed:', error.message);
+        res.status(500).json({ error: "History processing failed" });
     }
 });
 
@@ -788,7 +611,7 @@ app.get('/api/status', async (req, res) => {
     res.json({
         serverStatus: "Online 🟢",
         databaseStatus: "Connected (PostgreSQL) 🗄️",
-        aiConnection: "Ready (Azure) 🤖",
+        aiConnection: "Disabled (formatter only)",
         ipAddress: localIp,
         uptime: `${hours}h ${minutes}m ${seconds}s`,
         memoryUsed: `${memoryUsedMB} MB`,
@@ -822,11 +645,9 @@ app.get('/api/waiting-room', async (req, res) => {
                 hasHeartRate: !!data.heart_rate,
                 hasRespiratoryRate: !!data.respiratory_rate,
                 hasRhythm: !!data.heart_beat_rhythm,
-                status: (data.complaints && data.details && data.respiratory_rate && data.heart_rate)
+                status: (data.complaints && data.details)
                     ? "Complete - Ready for Triage"
-                    : data.complaints && data.details
-                        ? "Waiting for Vitals (rPPG)"
-                        : "Waiting for History"
+                    : "Waiting for History"
             });
         }
         res.json({ waitingRoom: waitingRoomList });

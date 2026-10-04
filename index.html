@@ -227,22 +227,15 @@
             </div>
 
             <div class="data-section">
-                <h3>🤖 AI Analysis</h3>
-                <p><strong>Clinical Summary:</strong> <span id="modal-summary"></span></p>
-                <p><strong>Patient Notes Summary:</strong> <span id="modal-notes-summary"
-                        style="color: #ffc107;"></span></p>
-            </div>
-
-            <div class="data-section">
                 <h3>🩺 Vitals</h3>
                 <p><strong>Heart Rate:</strong> <span id="modal-heart-rate"></span> | <strong>Resp Rate:</strong> <span
                         id="modal-resp"></span> | <strong>Rhythm:</strong> <span id="modal-rhythm"></span></p>
             </div>
 
             <div class="data-section">
-                <h3>📋 Detailed History</h3>
+                <h3>📋 Structured Clinical History</h3>
                 <p><strong>Main Complaints:</strong> <span id="modal-complaints"></span></p>
-                <p><strong>Full Medical Details:</strong></p>
+                <p><strong>Formatted Patient History:</strong></p>
                 <pre id="modal-details" style="white-space: pre-wrap; word-wrap: break-word; font-size: 14px;"></pre>
             </div>
 
@@ -302,13 +295,11 @@
             document.getElementById('modal-title').innerText = `Patient Details: ID ${patient.id}`;
             document.getElementById('modal-redflag').innerText = patient.redflag || "Unknown";
 
-            document.getElementById('modal-summary').innerText = patient.ai_summary || "No AI summary available.";
-            document.getElementById('modal-notes-summary').innerText = patient.final_note_summarized || "N/A";
             document.getElementById('modal-raw-notes').innerText = `"${patient.final_notes_raw || "None"}"`;
 
             document.getElementById('modal-heart-rate').innerText = patient.heart_rate || "N/A";
             document.getElementById('modal-resp').innerText = patient.respiratory_rate || "N/A";
-            document.getElementById('modal-rhythm').innerText = patient.heart_beat_rhythm || "Normal";
+            document.getElementById('modal-rhythm').innerText = patient.heart_beat_rhythm || "N/A";
 
             const zoneElement = document.getElementById('modal-zone');
             zoneElement.innerText = patient.triage_zone || "UNKNOWN";
@@ -321,12 +312,7 @@
                 document.getElementById('modal-complaints').innerText = patient.complaints;
             }
 
-            try {
-                const parsedDetails = JSON.parse(patient.details);
-                document.getElementById('modal-details').innerText = JSON.stringify(parsedDetails, null, 2);
-            } catch (e) {
-                document.getElementById('modal-details').innerText = patient.details;
-            }
+            document.getElementById('modal-details').innerText = patient.clinical_history_formatted || "No formatted history available.";
 
             document.getElementById('patientModal').style.display = "block";
         }
